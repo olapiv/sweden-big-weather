@@ -13,19 +13,13 @@ import java.util.{Date, Properties}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord, ProducerConfig}
 import scala.util.Random
 
-import org.apache.spark.sql.cassandra._
-import com.datastax.spark.connector._
-import com.datastax.driver.core.{Session, Cluster, Host, Metadata}
-import com.datastax.spark.connector.streaming._
+// import org.apache.spark.sql.cassandra._
+// import com.datastax.spark.connector._
+// import com.datastax.driver.core.{Session, Cluster, Host, Metadata}
+// import com.datastax.spark.connector.streaming._
 
 object KafkaSpark {
   def main(args: Array[String]) {
-    // connect to Cassandra and make a keyspace and table as explained in the document
-    val cluster = Cluster.builder().addContactPoint("127.0.0.1").build() 
-    val session = cluster.connect()
-    //To execute a command on a connected Cassandra instance, you can use the execute command as below
-    session.execute("CREATE KEYSPACE IF NOT EXISTS avg_space WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
-    session.execute("CREATE TABLE IF NOT EXISTS avg_space.avg (word text PRIMARY KEY, count float);")
 
     //Spark Stream context with 2 working threads and batch interval of 1 sec. 
     val conf = new SparkConf().setMaster("local[2]").setAppName("Spark Streaming  - AVG")
@@ -60,11 +54,7 @@ object KafkaSpark {
     //use mapWithState to calculated the average value of each key in a statful manner
     val stateDstream = pairs.mapWithState(StateSpec.function(mappingFunc _))
 
-    // store the result in Cassandra
-    stateDstream.saveToCassandra("avg_space", "avg", SomeColumns("word", "count"))
-
     ssc.start()
     ssc.awaitTermination()
-    session.close()
   }
 }

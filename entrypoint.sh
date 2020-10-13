@@ -15,9 +15,6 @@ sleep 5
 echo "Creating a Kafka topic"
 $KAFKA_HOME/bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic avg
 
-echo "Starting Cassandra"
-$CASSANDRA_HOME/bin/cassandra -R
-
 sleep 10
 
 #echo "Starting the cqlsh prompt"
