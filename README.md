@@ -8,11 +8,11 @@ Due to geographical or urban conditions, weather stations are not distributed pe
 
 - A real-time feed with Open Weather: https://openweathermap.org/api/one-call-api?gclid=CjwKCAjw8MD7BRArEiwAGZsrBZAziHCpMkeqY-7OeABUvfzM1O7ptpy66WoekfnVP_6Cin58VQWMWRoC63IQAvD_BwE
 
-- A real-time feed with Meteo Matics: https://www.meteomatics.com/en/weather-api/?gclid=CjwKCAjw8MD7BRArEiwAGZsrBb_FJfOGWfjdAmOq4jZbyUwXjn2irJ-oHES9DUXtlq6fkQlmz32D8hoCCPwQAvD_BwE
-
 ## Useful Links
 
 - Rest API call in Spark: https://stackoverflow.com/questions/41799578/restapi-service-call-from-spark-streaming
+
+- Websocket in Spark: https://www.nexmo.com/blog/2018/10/15/create-websocket-server-spark-framework-dr
 
 ## Build
 
@@ -46,7 +46,7 @@ Due to geographical or urban conditions, weather stations are not distributed pe
 
     This will run the KafkaSpark application in the background
 
-5. Run `cd ..` & then `cd generator`
+5. Run `cd ../generator`
 
     You should now be in the generator directory
 
