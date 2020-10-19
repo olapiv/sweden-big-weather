@@ -17,5 +17,10 @@ $KAFKA_HOME/bin/kafka-topics.sh --create --zookeeper localhost:2181 --replicatio
 
 sleep 10
 
+echo "Starting Cassandra"
+$CASSANDRA_HOME/bin/cassandra -R
+
+sleep 10
+
 #echo "Starting the cqlsh prompt"
 #$CASSANDRA_HOME/bin/cqlsh

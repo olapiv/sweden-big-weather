@@ -17,7 +17,7 @@ Due to geographical or urban conditions, weather stations are not distributed pe
 ## Build
 
 ```bash
-    docker build -t dic-project .
+    docker build -t dic-sweden-big-weather .
 ```
 
 ## Start and Setup container
@@ -28,7 +28,7 @@ Due to geographical or urban conditions, weather stations are not distributed pe
     docker run -it \
         -p 2128:2128 -p 8888:8888 -p 9042:9042 \
         -v ${PWD}/src:/home/dataintensive/src \
-        dic-project:latest
+        dic-sweden-big-weather:latest
     ```
 
 ## Run
