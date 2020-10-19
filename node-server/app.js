@@ -16,12 +16,25 @@ const server = http.createServer(app);
 
 const socketServer = new Server({ noServer: true });
 socketServer.on('connection', socket => {
+    console.log("Connected to Websocket!");
     socket.on('message', message => {
-        console.log('received: %s', message);
+        console.log('Received message: ', message);
     });
-    console.log("Hello!");
-    socket.send('something');
+    socket.send('Hey there!');
+
+    kafkaSubscribe(
+        'testTopic',
+        send
+    );
 });
+
+const send = (message) => {
+    socketServer.clients.forEach(
+        (client) => {
+            client.send(message.value);
+        }
+    );
+}
 
 server.on('upgrade', function upgrade(request, socket, head) {
     const pathname = url.parse(request.url).pathname;
