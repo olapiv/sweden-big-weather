@@ -8,4 +8,4 @@ ADD . .
 
 EXPOSE 8001
 
-ENTRYPOINT [ "node", "--experimental-json-modules", "app.js" ]
+CMD [ "npm", "start" ]
