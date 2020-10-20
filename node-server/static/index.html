@@ -64,18 +64,17 @@
 
                 // DATA JOIN
                 // Join new data with old elements, if any.
-                var circle = g.selectAll("circle").data(dataArray);
+                var circle = g.selectAll("circle").data(dataArray, (d) => d.coordinates.Longitude + d.coordinates.Longitude);
 
                 // ENTER
                 // Create new elements as needed.
                 circle.enter().append("circle")
                     .attr("cx", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[0])
                     .attr("cy", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[1])
-                    .attr("r", 0.1)
+                    .attr("r", 1)
                     .attr("fill", (d) => {
-                        // const tempRatio = (d.temperature_celsius + 273.15) / 320 // Max 50 degrees
-                        // return "hsl(" + tempRatio * 360 + ",100%,50%)";
-                        return "hsl(" + Math.random() * 360 + ",100%,50%)";
+                        const tempRatio = (d.temperature_celsius + 30) / 80 // 30-50 degrees
+                        return "hsla(" + (1 - tempRatio) * 240 + ",100%,50%, 0.5)";
                     });
 
                 // UPDATE
@@ -85,11 +84,11 @@
                     .attr("cx", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[0]+ Math.random())
                     .attr("cy", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[1]+ Math.random())
                     .attr("fill", (d) => {
-                        // const tempRatio = (d.temperature_celsius + 273.15) / 320 // Max 50 degrees
-                        // return "hsl(" + tempRatio * 360 + ",100%,50%)";
-                        return "hsl(" + Math.random() * 360 + ",100%,50%)";
+                        const tempRatio = (d.temperature_celsius + 30) / 80 // 30-50 degrees
+                        return "hsla(" + (1 - tempRatio) * 240 + ",100%,50%, 0.5)";
                     })
 
+                // TODO: Probably required to remove this, in case we don't always update everything at once
                 // EXIT
                 // Remove old elements as needed.
                 circle.exit().remove();                        
