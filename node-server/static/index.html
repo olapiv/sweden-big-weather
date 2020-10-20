@@ -15,6 +15,8 @@
         <script src="https://d3js.org/d3.v3.min.js"></script>
         <script src="https://d3js.org/topojson.v0.min.js"></script>
         <script>
+
+            const sampleDataJSON = "https://raw.githubusercontent.com/mactsouk/datasets/master/data.json";
             
             // Map constants:
             const width = 1600;
@@ -28,7 +30,7 @@
                 .attr("height", height);
             const path = d3.geo.path()
                 .projection(projection);
-            const g = svg.append("g");
+            const g = svg.append("g");  // "g" for group; required for zoom I believe
 
             // Draw Map
             d3.json("https://gist.githubusercontent.com/d3noob/5189284/raw/7c4bbf3f44d2aeb4d01ca6365b7978b09fdc8766/world-110m2.json",
@@ -41,31 +43,88 @@
                 }
             );
 
-            const drawCoordinates = (dataArray) =>  {
-                d3.json(dataArray,
+            const drawCircles = (circles) => {
+                circles
+                    .attr("cx", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[0])
+                    .attr("cy", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[1])
+                    .attr("r", 2.5)
+                    .attr("fill", (d) => {
+                        // const tempRatio = (d.temperature_celsius + 273.15) / 320 // Max 50 degrees
+                        // return "hsl(" + tempRatio * 360 + ",100%,50%)";
+                        return "hsl(" + Math.random() * 360 + ",100%,50%)";
+                    });
+            }
+
+            let drawCoordinates = (dataArray) =>  {
+
+                // DATA JOIN
+                // Join new data with old elements, if any.
+                var circle = g.selectAll("circle").data(dataArray);
+
+                // ENTER
+                // Create new elements as needed.
+                circle.enter().append("circle")
+                    .attr("cx", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[0])
+                    .attr("cy", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[1])
+                    .attr("r", 2.5)
+                    .attr("fill", (d) => {
+                        // const tempRatio = (d.temperature_celsius + 273.15) / 320 // Max 50 degrees
+                        // return "hsl(" + tempRatio * 360 + ",100%,50%)";
+                        return "hsl(" + Math.random() * 360 + ",100%,50%)";
+                    });
+
+                // UPDATE
+                // Update old elements as needed.
+                circle
+                    .transition().duration(1000)
+                    .attr("cx", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[0]+ Math.random())
+                    .attr("cy", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[1]+ Math.random())
+                    .attr("fill", (d) => {
+                        // const tempRatio = (d.temperature_celsius + 273.15) / 320 // Max 50 degrees
+                        // return "hsl(" + tempRatio * 360 + ",100%,50%)";
+                        return "hsl(" + Math.random() * 360 + ",100%,50%)";
+                    })
+
+                // EXIT
+                // Remove old elements as needed.
+                circle.exit().remove();                        
+
+
+                // g.selectAll("circle")
+                //     .data(dataArray)
+                //     .enter()
+                //     .append("circle")
+                //     .attr("cx", (d) => {
+                //         return projection([d.coordinates.Longitude, d.coordinates.Latitude])[0];
+                //     })
+                //     .attr("cy", (d) => {
+                //         return projection([d.coordinates.Longitude, d.coordinates.Latitude])[1];
+                //     })
+                //     .attr("r", Math.random()*10 + "px")
+                //     .attr("fill", (d) => {
+                //         // const tempRatio = (d.temperature_celsius + 273.15) / 320 // Max 50 degrees
+                //         // return "hsl(" + tempRatio * 360 + ",100%,50%)";
+
+                //         return "hsl(" + Math.random() * 360 + ",100%,50%)";
+                //     });
+            }
+
+            const drawCoordinatesURL = (dataJSON) =>  {
+                d3.json(
+                    dataJSON,
                     function(error, data) {
-                        if (error) { console.log(error); }
+                        if (error) { 
+                            console.log(error);
+                            return
+                        }
                         console.log("Reading Data!");
                         console.log(data);
-                        g.selectAll("circle")
-                            .data(data)
-                            .enter()
-                            .append("circle")
-                            .attr("cx", function(d) {
-                                    return projection([d.value.Longitude, d.value.Latitude])[0];
-                            })
-                            .attr("cy", function(d) {
-                                    return projection([d.value.Longitude, d.value.Latitude])[1];
-                            })
-                            .attr("r", "3px")
-                            .attr("fill", function() {
-                                return "hsl(" + Math.random() * 360 + ",100%,50%)";
-                        });
+                        drawCoordinates(data)
                     }
                 );
             }
 
-            drawCoordinates("https://raw.githubusercontent.com/mactsouk/datasets/master/data.json");
+            // drawCoordinatesURL(sampleDataJSON);
 
             // Extra Zoom functionality
             var zoom = d3.behavior.zoom()
@@ -81,8 +140,15 @@
 
             const socket = new WebSocket("ws://localhost:8001");
             socket.onmessage = function(event) {
-                console.log(`Received message: ${event.data}`);
-                drawCoordinates("https://raw.githubusercontent.com/mactsouk/datasets/master/data.json");
+                console.log("Received message!");
+                let data;
+                try {
+                    data = JSON.parse(event.data);
+                } catch (e) {
+                    console.log("Message: ", event.data);
+                    return
+                }
+                drawCoordinates(data);
             };
         </script>
     </body>

@@ -1,8 +1,7 @@
 import http from 'http';
 import ws from 'ws';
-const { Server, Message, WebSocketClient } = ws;
 import express from 'express';
-import { kafkaSubscribe } from './src/consumer.js';
+import { kafkaSubscribe, kafkaFakeSubscribe } from './src/consumer.js';
 
 const PORT = 8001;
 
@@ -13,7 +12,7 @@ app.use(express.static('./static'));
 
 const server = http.createServer(app);
 
-const socketServer = new Server({ server: server });
+const socketServer = new ws.Server({ server: server });
 socketServer.on('connection', socket => {
     console.log("Connected to Websocket!");
     socket.on('message', message => {
@@ -21,16 +20,17 @@ socketServer.on('connection', socket => {
     });
     socket.send('Hey there!');
 
-    kafkaSubscribe(
-        'testTopic',
-        send
-    );
+    if (socketServer.clients.size === 1) {
+        kafkaFakeSubscribe('testTopic', broadcast)
+        // kafkaSubscribe('testTopic', broadcast);
+    }
+
 });
 
-const send = (message) => {
+const broadcast = (messageString) => {
     socketServer.clients.forEach(
         (client) => {
-            client.send(message.value);
+            client.send(messageString);
         }
     );
 }

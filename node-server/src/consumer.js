@@ -2,10 +2,24 @@
 
 import kafkaNode from 'kafka-node';
 const {  KafkaClient, Consumer, Message, Offset, OffsetFetchRequest, ConsumerOptions } = kafkaNode;
+import sampleJSON from '../static/data.json';
 
 const kafkaHost = 'localhost:9092';
 
+export function kafkaFakeSubscribe(topic, handleMessageFunc) {
+    setInterval(
+        () => {
+            const dataString = JSON.stringify(sampleJSON);
+            // console.log("dataString: ", dataString);
+            handleMessageFunc(dataString)
+        },
+        2000
+    )
+}
+
 export function kafkaSubscribe(topic, handleMessageFunc) {
+
+    // TODO: Think about having one continuous client, as a function parameter
 
     // New KafkaClient connects directly to Kafka brokers.
     const client = new KafkaClient({ kafkaHost });
@@ -31,7 +45,7 @@ export function kafkaSubscribe(topic, handleMessageFunc) {
             }
 
             consumer.on('message', function(message) {
-                handleMessageFunc(message);
+                handleMessageFunc(message.value);
             });
 
             /*
@@ -51,4 +65,6 @@ export function kafkaSubscribe(topic, handleMessageFunc) {
             );
         }
     );
+
+    // TODO: Perhaps return Consumer, so it can be cancelled when the browser closes
 }
