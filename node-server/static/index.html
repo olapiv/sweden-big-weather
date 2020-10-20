@@ -57,6 +57,11 @@
 
             let drawCoordinates = (dataArray) =>  {
 
+                // Stackoverflow: https://stackoverflow.com/a/27171893/9068781
+                // Implementation reference: https://observablehq.com/@d3/selection-join
+                // Joins: https://bost.ocks.org/mike/join/
+                // Object constancy: https://bost.ocks.org/mike/constancy/
+
                 // DATA JOIN
                 // Join new data with old elements, if any.
                 var circle = g.selectAll("circle").data(dataArray);
@@ -66,7 +71,7 @@
                 circle.enter().append("circle")
                     .attr("cx", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[0])
                     .attr("cy", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[1])
-                    .attr("r", 2.5)
+                    .attr("r", 0.1)
                     .attr("fill", (d) => {
                         // const tempRatio = (d.temperature_celsius + 273.15) / 320 // Max 50 degrees
                         // return "hsl(" + tempRatio * 360 + ",100%,50%)";
@@ -89,42 +94,7 @@
                 // Remove old elements as needed.
                 circle.exit().remove();                        
 
-
-                // g.selectAll("circle")
-                //     .data(dataArray)
-                //     .enter()
-                //     .append("circle")
-                //     .attr("cx", (d) => {
-                //         return projection([d.coordinates.Longitude, d.coordinates.Latitude])[0];
-                //     })
-                //     .attr("cy", (d) => {
-                //         return projection([d.coordinates.Longitude, d.coordinates.Latitude])[1];
-                //     })
-                //     .attr("r", Math.random()*10 + "px")
-                //     .attr("fill", (d) => {
-                //         // const tempRatio = (d.temperature_celsius + 273.15) / 320 // Max 50 degrees
-                //         // return "hsl(" + tempRatio * 360 + ",100%,50%)";
-
-                //         return "hsl(" + Math.random() * 360 + ",100%,50%)";
-                //     });
             }
-
-            const drawCoordinatesURL = (dataJSON) =>  {
-                d3.json(
-                    dataJSON,
-                    function(error, data) {
-                        if (error) { 
-                            console.log(error);
-                            return
-                        }
-                        console.log("Reading Data!");
-                        console.log(data);
-                        drawCoordinates(data)
-                    }
-                );
-            }
-
-            // drawCoordinatesURL(sampleDataJSON);
 
             // Extra Zoom functionality
             var zoom = d3.behavior.zoom()
