@@ -1,16 +1,24 @@
 // Original here: https://gist.github.com/drochgenius/485cdb9e022618276be241a9a7247e5e#file-consumer-ts
 
 import kafkaNode from 'kafka-node';
-const {  KafkaClient, Consumer, Message, Offset, OffsetFetchRequest, ConsumerOptions } = kafkaNode;
-import sampleJSON from '../static/data.json';
+const { KafkaClient, Consumer, Message, Offset, OffsetFetchRequest, ConsumerOptions } = kafkaNode;
+import sampleJSON from '../static/sampleData.json';
+import { filledData, getRandomInRange } from './fakeDataGenerator.js';
 
 const kafkaHost = 'localhost:9092';
 
 export function kafkaFakeSubscribe(topic, handleMessageFunc) {
     setInterval(
         () => {
-            const dataString = JSON.stringify(sampleJSON);
-            // console.log("dataString: ", dataString);
+            const newTemperature = filledData.map(element => {
+                const minimalChange = getRandomInRange(-8, 8, 3)
+                element["temperature_celsius"] += minimalChange
+                return element
+            })
+
+            const dataString = JSON.stringify(newTemperature);
+            // const dataString = JSON.stringify(sampleJSON);
+
             handleMessageFunc(dataString)
         },
         2000
@@ -29,7 +37,7 @@ export function kafkaSubscribe(topic, handleMessageFunc) {
 
     const consumer = new Consumer(client, topics, options);
 
-    consumer.on('error', function(err) {
+    consumer.on('error', function (err) {
         console.log('error', err);
     });
 
@@ -44,7 +52,7 @@ export function kafkaSubscribe(topic, handleMessageFunc) {
                 return
             }
 
-            consumer.on('message', function(message) {
+            consumer.on('message', function (message) {
                 handleMessageFunc(message.value);
             });
 
@@ -54,7 +62,7 @@ export function kafkaSubscribe(topic, handleMessageFunc) {
             consumer.on(
                 'offsetOutOfRange',
                 (topic) => {
-                    offset.fetch([topic], function(err, offsets) {
+                    offset.fetch([topic], function (err, offsets) {
                         if (err) {
                             return console.error(err);
                         }
