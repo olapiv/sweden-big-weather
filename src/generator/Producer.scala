@@ -53,7 +53,9 @@ object ScalaProducerExample extends App {
     val i = Random.nextInt(alphabet.size)
 
     val topic = "avg"
-    val brokers = "localhost:9092"
+
+    val brokers = if (sys.env("BROKERS") != null) sys.env("BROKERS") else "localhost:9092"
+    println("Kafka Brokers: " + brokers)
 
     val props = new Properties()
     props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers)

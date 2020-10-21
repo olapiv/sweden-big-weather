@@ -1,0 +1,37 @@
+version: "3.8"
+services:  
+  kafka_zookeeper:
+    build: ./docker/kafka
+    ports:
+      - "2181:2181"
+      - "9092:9092"
+
+  cassandra:
+    # build: ./docker/cassandra
+    image: cassandra:3.11.8
+    expose:
+      - 7000
+      - 7001
+      - 7199
+      - 9042
+      - 9160
+
+  generator:
+    build: ./src/generator
+    environment:
+      BROKERS: kafka_zookeeper:9092
+    depends_on:
+      - kafka_zookeeper
+    logging:
+        driver: none  
+
+  sparkstreaming:
+    build: ./src/sparkstreaming
+    environment:
+      BROKERS: kafka_zookeeper:9092
+      ZOOKEEPER: kafka_zookeeper:2181
+      CASSANDRA: cassandra
+    depends_on:
+      - cassandra
+      - kafka_zookeeper
+      

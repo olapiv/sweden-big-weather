@@ -22,7 +22,9 @@ object KafkaSpark {
   def main(args: Array[String]) {
 
     // connect to Cassandra and make a keyspace and table as explained in the document
-    val cluster = Cluster.builder().addContactPoint("127.0.0.1").build() 
+    val cassandra = if (sys.env("CASSANDRA") != null) sys.env("CASSANDRA") else "127.0.0.1"
+    println("Cassandra: " + cassandra)
+    val cluster = Cluster.builder().addContactPoint(cassandra).build() 
     
     println("About to connect to cluster")
     val session = cluster.connect()
@@ -39,15 +41,19 @@ object KafkaSpark {
     println("Created Table")
 
     //Spark Stream context with 2 working threads and batch interval of 1 sec. 
-    val conf = new SparkConf().setMaster("local[2]").setAppName("Spark Streaming  - AVG")
+    val conf = new SparkConf().set("spark.cassandra.connection.host", cassandra).setMaster("local[2]").setAppName("Spark Streaming  - AVG")
     val topics = Set("avg")
     val ssc = new StreamingContext(conf, Seconds(1))
     ssc.checkpoint("file:///tmp/spark/checkpoint")
     // make a connection to Kafka and read (key, value) pairs from it
     //val topics = ? 
+
+    val brokers = if (sys.env("BROKERS") != null) sys.env("BROKERS") else "localhost:9092"
+    val zookeeper = if (sys.env("ZOOKEEPER") != null) sys.env("ZOOKEEPER") else "localhost:2181"
+
     val kafkaConf = Map(
-        "metadata.broker.list" -> "localhost:9092", 
-        "zookeeper.connect" -> "localhost:2181", 
+        "metadata.broker.list" -> brokers, 
+        "zookeeper.connect" -> zookeeper, 
         "group.id" -> "kafka-spark-streaming", 
         "zookeeper.connection.timeout.ms" -> "1000")
         
