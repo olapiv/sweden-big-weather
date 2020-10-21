@@ -17,40 +17,13 @@ Due to geographical or urban conditions, weather stations are not distributed pe
 ## Build
 
 ```bash
-    docker build -t dic-sweden-big-weather .
+    docker-compose build
 ```
 
 ## Start and Setup container
 
 1. Run the Docker container in interactive mode
 
-   ```bash
-    docker run -it \
-        -p 2128:2128 -p 8888:8888 -p 9042:9042 \
-        -v ${PWD}/src:/home/dataintensive/src \
-        dic-sweden-big-weather:latest
+    ```bash
+        docker-compose up -rm
     ```
-
-## Run
-
-1. Run `$APP_HOME/entrypoint.sh`
-
-2. Run `cd src/sparkstreaming/`
-
-    You should now be in the sparkstreaming directory
-
-3. Run `sbt compile`
-    This will compile the KafkaSpark application
-
-4. Run `setsid nohup sbt run &`
-
-    This will run the KafkaSpark application in the background
-
-5. Run `cd ../generator`
-
-    You should now be in the generator directory
-
-6. Run `sbt run`
-
-    This will start the Producer to generate a streaming input (pairs of "String,int") and feed them to Kafka.
-    Let this run for a while before doing 'ctrl + c' to kill the process/application.
