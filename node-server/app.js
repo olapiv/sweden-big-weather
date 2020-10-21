@@ -21,8 +21,8 @@ socketServer.on('connection', socket => {
     socket.send('Hey there!');
 
     if (socketServer.clients.size === 1) {
-        kafkaFakeSubscribe('testTopic', broadcast)
-        // kafkaSubscribe('testTopic', broadcast);
+        kafkaFakeSubscribe('city-temperatures', broadcast)
+        // kafkaSubscribe('city-temperatures', broadcast);
     }
 
 });

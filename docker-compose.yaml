@@ -8,14 +8,14 @@ services:
       - "2181:2181" # Zookeeper
       - "9092:9092" # Kafka broker
 
-  cassandra:
-    image: cassandra:3.11.8
-    expose:
-      - 7000
-      - 7001
-      - 7199
-      - 9042
-      - 9160
+  # cassandra:
+  #   image: cassandra:3.11.8
+  #   expose:
+  #     - 7000
+  #     - 7001
+  #     - 7199
+  #     - 9042
+  #     - 9160
 
   producer:
     build: ./producer
@@ -24,15 +24,18 @@ services:
       WEATHER_API_TOKEN: f857d120fca3c9d9138f63e95df28464
     depends_on:
       - kafka
-    logging:
-      driver: none
 
-  sparkstreaming:
-    build: ./sparkstreaming
-    environment:
-      BROKER_URL: kafka:9092
-      ZOOKEEPER: kafka:2181
-      CASSANDRA: cassandra
-    depends_on:
-      - cassandra
-      - kafka
+  # sparkstreaming:
+  #   build: ./sparkstreaming
+  #   environment:
+  #     BROKER_URL: kafka:9092
+  #     ZOOKEEPER: kafka:2181
+  #     CASSANDRA: cassandra
+  #   depends_on:
+  #     - cassandra
+  #     - kafka
+
+  # node-server:
+  #   build: ./node-server
+  #   depends_on:
+  #     - kafka
