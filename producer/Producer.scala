@@ -70,7 +70,6 @@ object TemperatureProducer extends App {
         implicit val coordFormat = jsonFormat2(Coord)
         implicit val requiredDataFormat = jsonFormat3(RequiredDataPoint)
 
-
         for (dataPoint <- transformedDataList) {
             Thread.sleep(200)
             val data = new ProducerRecord[String, String](KAFKA_TOPIC, null, dataPoint.toJson.compactPrint)

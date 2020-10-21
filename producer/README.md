@@ -1,6 +1,14 @@
 # Data Producer
 
-## Build
+## Run & build locally
+
+```bash
+    export BROKER_URL=localhost:9092
+    export WEATHER_API_TOKEN=f857d120fca3c9d9138f63e95df28464
+    sbt run
+```
+
+## Build Docker
 
 ```bash
     docker build -t dic-producer .
