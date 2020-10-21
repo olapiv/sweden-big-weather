@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+    <title>Index</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="">
+    <style>
+        path {
+          stroke: white;
+          stroke-width: 0.25px;
+          fill: grey;
+        }
+    </style>
+    <body>
+        <h1>Hi there!</h1>
+        <script src="https://d3js.org/d3.v3.min.js"></script>
+        <script src="https://d3js.org/topojson.v0.min.js"></script>
+        <script>
+
+            const sampleDataJSON = "https://raw.githubusercontent.com/mactsouk/datasets/master/data.json";
+            
+            // Map constants:
+            const width = 1600;
+            const height = 1000;
+            const projection = d3.geo.mercator()
+                .center([0, 5 ])
+                .scale(200)
+                .rotate([-180,0]);
+            const svg = d3.select("body").append("svg")
+                .attr("width", width)
+                .attr("height", height);
+            const path = d3.geo.path()
+                .projection(projection);
+            const g = svg.append("g");  // "g" for group; required for zoom I believe
+
+            // Draw Map
+            d3.json("https://gist.githubusercontent.com/d3noob/5189284/raw/7c4bbf3f44d2aeb4d01ca6365b7978b09fdc8766/world-110m2.json",
+                function(error, topology) {
+                    g.selectAll("path")
+                        .data(topojson.object(topology, topology.objects.countries).geometries)
+                        .enter()
+                        .append("path")
+                        .attr("d", path)
+                }
+            );
+
+            const drawCircles = (circles) => {
+                circles
+                    .attr("cx", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[0])
+                    .attr("cy", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[1])
+                    .attr("r", 2.5)
+                    .attr("fill", (d) => {
+                        // const tempRatio = (d.temperature_celsius + 273.15) / 320 // Max 50 degrees
+                        // return "hsl(" + tempRatio * 360 + ",100%,50%)";
+                        return "hsl(" + Math.random() * 360 + ",100%,50%)";
+                    });
+            }
+
+            let drawCoordinates = (dataArray) =>  {
+
+                // Stackoverflow: https://stackoverflow.com/a/27171893/9068781
+                // Implementation reference: https://observablehq.com/@d3/selection-join
+                // Joins: https://bost.ocks.org/mike/join/
+                // Object constancy: https://bost.ocks.org/mike/constancy/
+
+                // DATA JOIN
+                // Join new data with old elements, if any.
+                var circle = g.selectAll("circle").data(dataArray, (d) => d.coordinates.Longitude + d.coordinates.Longitude);
+
+                // ENTER
+                // Create new elements as needed.
+                circle.enter().append("circle")
+                    .attr("cx", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[0])
+                    .attr("cy", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[1])
+                    .attr("r", 1)
+                    .attr("fill", (d) => {
+                        const tempRatio = (d.temperature_celsius + 30) / 80 // 30-50 degrees
+                        return "hsla(" + (1 - tempRatio) * 240 + ",100%,50%, 0.5)";
+                    });
+
+                // UPDATE
+                // Update old elements as needed.
+                circle
+                    .transition().duration(1000)
+                    .attr("cx", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[0]+ Math.random())
+                    .attr("cy", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[1]+ Math.random())
+                    .attr("fill", (d) => {
+                        const tempRatio = (d.temperature_celsius + 30) / 80 // 30-50 degrees
+                        return "hsla(" + (1 - tempRatio) * 240 + ",100%,50%, 0.5)";
+                    })
+
+                // TODO: Probably required to remove this, in case we don't always update everything at once
+                // EXIT
+                // Remove old elements as needed.
+                circle.exit().remove();                        
+
+            }
+
+            // Extra Zoom functionality
+            var zoom = d3.behavior.zoom()
+                .on("zoom",function() {
+                    g.attr("transform","translate("+ 
+                        d3.event.translate.join(",")+")scale("+d3.event.scale+")");
+                    g.selectAll("circle")
+                        .attr("d", path.projection(projection));
+                    g.selectAll("path")  
+                        .attr("d", path.projection(projection)); 
+            });
+            svg.call(zoom)
+
+            const socket = new WebSocket("ws://localhost:8001");
+            socket.onmessage = function(event) {
+                console.log("Received message!");
+                let data;
+                try {
+                    data = JSON.parse(event.data);
+                } catch (e) {
+                    console.log("Message: ", event.data);
+                    return
+                }
+                drawCoordinates(data);
+            };
+        </script>
+    </body>
+</html>
