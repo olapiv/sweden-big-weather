@@ -18,7 +18,7 @@ import com.datastax.spark.connector._
 import com.datastax.driver.core.{Session, Cluster, Host, Metadata}
 import com.datastax.spark.connector.streaming._
 
-object KafkaSpark {
+object Engine {
   def main(args: Array[String]) {
 
     // connect to Cassandra and make a keyspace and table as explained in the document
@@ -32,7 +32,7 @@ object KafkaSpark {
 
 
     println("About to execute creation of Keyspace")
-    //To execute a command on a connected Cassandra instance, you can use the execute command as below
+    // To execute a command on a connected Cassandra instance, you can use the execute command as below
     session.execute("CREATE KEYSPACE IF NOT EXISTS avg_space WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
     println("Created Keyspace")
 
@@ -40,9 +40,9 @@ object KafkaSpark {
     session.execute("CREATE TABLE IF NOT EXISTS avg_space.avg (key text PRIMARY KEY, weather text);")
     println("Created Table")
 
-    //Spark Stream context with 2 working threads and batch interval of 1 sec. 
-    val conf = new SparkConf().set("spark.cassandra.connection.host", cassandra).setMaster("local[2]").setAppName("Spark Streaming  - AVG")
-    val topics = Set("avg")
+    // Spark Stream context with 2 working threads and batch interval of 1 sec. 
+    val conf = new SparkConf().set("spark.cassandra.connection.host", cassandra).setMaster("local[2]").setAppName("Spark Streaming - Temperatures")
+    val topics = Set("city-temperatures")
     val ssc = new StreamingContext(conf, Seconds(1))
     ssc.checkpoint("file:///tmp/spark/checkpoint")
     // make a connection to Kafka and read (key, value) pairs from it

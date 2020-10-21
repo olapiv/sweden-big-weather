@@ -1,4 +1,4 @@
-package generator
+package producer
 
 import scalaj.http._
 import spray.json._
@@ -14,10 +14,12 @@ import scala.util.Random
 import kafka.producer.KeyedMessage
 
 
-object ScalaProducerExample extends App {
+object TemperatureProducer extends App {
+
+    val WEATHER_API_TOKEN = sys.env("WEATHER_API_TOKEN")
    
     def weatherList: String = {
-        // val url = "http://api.openweathermap.org/data/2.5/group?id=601972,602137,602149,602150&APPID=f857d120fca3c9d9138f63e95df28464"
+        val url = "http://api.openweathermap.org/data/2.5/group?id=601972,602137,602149,602150&APPID=" + WEATHER_API_TOKEN
         // val result = scala.io.Source.fromURL(url).mkString 
         
         val jsonFile = new File("results.json")
@@ -42,17 +44,11 @@ object ScalaProducerExample extends App {
 
         val value = jsonAst.convertTo[PlaceList]
         //println(placeList)
-        println(key)
         
         return value + ""
     }
 
-    val alphabet = 'a' to 'z'
-    val events = 10000
-    val rnd = new Random()
-    val i = Random.nextInt(alphabet.size)
-
-    val topic = "avg"
+    val topic = "city-temperatures"
 
     val brokers = if (sys.env("BROKERS") != null) sys.env("BROKERS") else "localhost:9092"
     println("Kafka Brokers: " + brokers)
@@ -64,10 +60,8 @@ object ScalaProducerExample extends App {
     props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
     val producer = new KafkaProducer[String, String](props)
     
-    val key = alphabet(i) + ""
-    
     while (true) {
-        val data = new ProducerRecord[String, String](topic, key, weatherList)
+        val data = new ProducerRecord[String, String](topic, null, weatherList)
         producer.send(data)
         print(data + "\n")
     }

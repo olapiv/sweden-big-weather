@@ -1,13 +1,14 @@
 version: "3.8"
-services:  
-  kafka_zookeeper:
-    build: ./docker/kafka
+services:
+  kafka:
+    # image: johnnypark/kafka-zookeeper:latest
+    # entrypoint: ./kafka/entrypoint.sh
+    build: ./kafka
     ports:
-      - "2181:2181"
-      - "9092:9092"
+      - "2181:2181" # Zookeeper
+      - "9092:9092" # Kafka broker
 
   cassandra:
-    # build: ./docker/cassandra
     image: cassandra:3.11.8
     expose:
       - 7000
@@ -16,22 +17,22 @@ services:
       - 9042
       - 9160
 
-  generator:
-    build: ./src/generator
+  producer:
+    build: ./producer
     environment:
-      BROKERS: kafka_zookeeper:9092
+      BROKERS: kafka:9092
+      WEATHER_API_TOKEN: f857d120fca3c9d9138f63e95df28464
     depends_on:
-      - kafka_zookeeper
+      - kafka
     logging:
-        driver: none  
+      driver: none
 
   sparkstreaming:
-    build: ./src/sparkstreaming
+    build: ./sparkstreaming
     environment:
-      BROKERS: kafka_zookeeper:9092
-      ZOOKEEPER: kafka_zookeeper:2181
+      BROKERS: kafka:9092
+      ZOOKEEPER: kafka:2181
       CASSANDRA: cassandra
     depends_on:
       - cassandra
-      - kafka_zookeeper
-      
+      - kafka

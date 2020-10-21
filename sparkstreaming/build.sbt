@@ -1,4 +1,4 @@
-name := "spark_kafka"
+name := "spark_engine"
 
 version := "1.0"
 
