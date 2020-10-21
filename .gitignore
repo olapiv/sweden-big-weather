@@ -107,9 +107,8 @@ run_development.sh
 .metals/
 
 ### Project ###
-lab1/src/id2221/wordcount_classes
-lab1/src/id2221/hbase_classes
-lab1/src/id2221/topten_classes
+producer/project
+producer/.idea
 *.jar
 .ipynb_checkpoints/
 nohup.out
