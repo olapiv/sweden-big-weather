@@ -48,7 +48,7 @@ object Engine {
     // make a connection to Kafka and read (key, value) pairs from it
     //val topics = ? 
 
-    val brokers = if (sys.env("BROKERS") != null) sys.env("BROKERS") else "localhost:9092"
+    val brokers = if (sys.env("BROKER_URL") != null) sys.env("BROKER_URL") else "localhost:9092"
     val zookeeper = if (sys.env("ZOOKEEPER") != null) sys.env("ZOOKEEPER") else "localhost:2181"
 
     val kafkaConf = Map(

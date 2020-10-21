@@ -20,7 +20,7 @@ services:
   producer:
     build: ./producer
     environment:
-      BROKERS: kafka:9092
+      BROKER_URL: kafka:9092
       WEATHER_API_TOKEN: f857d120fca3c9d9138f63e95df28464
     depends_on:
       - kafka
@@ -30,7 +30,7 @@ services:
   sparkstreaming:
     build: ./sparkstreaming
     environment:
-      BROKERS: kafka:9092
+      BROKER_URL: kafka:9092
       ZOOKEEPER: kafka:2181
       CASSANDRA: cassandra
     depends_on:
