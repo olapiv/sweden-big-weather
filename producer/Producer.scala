@@ -13,57 +13,68 @@ import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord, Produce
 import scala.util.Random
 import kafka.producer.KeyedMessage
 
+// JSON Structure of OpenweatherMap API
+case class Coord(lon: Double, lat: Double)
+case class MainEntry(temp: Double)
+case class Place(coord: Coord, main: MainEntry, name: String)
+case class PlaceList(list: List[Place])
+
+case class RequiredDataPoint(temperatureKelvin: Double, coordinates: Coord, city: String)
+
 
 object TemperatureProducer extends App {
 
     val WEATHER_API_TOKEN = sys.env("WEATHER_API_TOKEN")
-   
-    def weatherList: String = {
-        val url = "http://api.openweathermap.org/data/2.5/group?id=601972,602137,602149,602150&APPID=" + WEATHER_API_TOKEN
+    val BROKER_URL = sys.env("BROKER_URL") // "localhost:9092"
+    val KAFKA_TOPIC = "city-temperatures"
+
+    def initialiseProducer(brokerURL: String): KafkaProducer[String, String] = {
+        val props = new Properties()
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerURL)
+        props.put(ProducerConfig.CLIENT_ID_CONFIG, "ScalaProducerExample")
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+        new KafkaProducer[String, String](props)
+    }
+
+    def getDataString(): String = {
+        // val url = "http://api.openweathermap.org/data/2.5/group?id=601972,602137,602149,602150&APPID=" + WEATHER_API_TOKEN
         // val result = scala.io.Source.fromURL(url).mkString 
         
-        val jsonFile = new File("results.json")
+        val jsonFile = new File("sampleWeatherData.json")
         val result = scala.io.Source.fromFile(jsonFile).mkString
 
-        //println(result)
-        val jsonAst = result.parseJson
-        //println(jsonAst)
-        val json = jsonAst.prettyPrint 
-        //println(json)
+        result
+    }
+   
+    def parseJSON(jsonString: String): PlaceList = {
+        val jsonAst = jsonString.parseJson
 
-        case class Coord(lon: Double, lat: Double)
-        case class MainEntry(temp: Double)
-        case class Place(coord: Coord, main: MainEntry, name: String)
-        case class PlaceList(list: List[Place])
-
-        // create the formats and provide them implicitly
+        // Create the formats and provide them implicitly
         implicit val coordFormat = jsonFormat2(Coord)
         implicit val mainFormat = jsonFormat1(MainEntry)
         implicit val placeFormat = jsonFormat3(Place)
         implicit val placeListFormat = jsonFormat1(PlaceList)
 
-        val value = jsonAst.convertTo[PlaceList]
-        //println(placeList)
-        
-        return value + ""
+        jsonAst.convertTo[PlaceList]
     }
 
-    val topic = "city-temperatures"
+    // Kafka
+    val producer = initialiseProducer(BROKER_URL)
 
-    val brokers = if (sys.env("BROKERS") != null) sys.env("BROKERS") else "localhost:9092"
-    println("Kafka Brokers: " + brokers)
-
-    val props = new Properties()
-    props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers)
-    props.put(ProducerConfig.CLIENT_ID_CONFIG, "ScalaProducerExample")
-    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
-    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
-    val producer = new KafkaProducer[String, String](props)
-    
     while (true) {
-        val data = new ProducerRecord[String, String](topic, null, weatherList)
-        producer.send(data)
-        print(data + "\n")
+        val dataString = getDataString();
+        val placeList = parseJSON(dataString)
+        val transformedDataList = placeList.list.map(x => RequiredDataPoint(x.main.temp, x.coord, x.name))
+
+        implicit val coordFormat = jsonFormat2(Coord)
+        implicit val requiredDataFormat = jsonFormat3(RequiredDataPoint)
+
+        transformedDataList.foreach(x => {
+            val data = new ProducerRecord[String, String](KAFKA_TOPIC, null, x.toJson.compactPrint)
+            producer.send(data)
+            println(data)
+        })
     }
 
     producer.close()
