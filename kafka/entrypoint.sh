@@ -1,14 +1,7 @@
 #!/bin/bash
 
-echo "Starting the ZooKeeper server"
-$KAFKA_HOME/bin/zookeeper-server-start.sh -daemon $KAFKA_HOME/config/zookeeper.properties
-
-sleep 2
-
-echo "Starting the Kafka server"
-$KAFKA_HOME/bin/kafka-server-start.sh $KAFKA_HOME/config/server.properties
-
-sleep 5
-
-echo "Creating a Kafka topic"
+echo "Creating a Kafka topic city-temperatures"
 $KAFKA_HOME/bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic city-temperatures
+
+echo "Creating a Kafka topic grid-temperatures"
+$KAFKA_HOME/bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic grid-temperatures
