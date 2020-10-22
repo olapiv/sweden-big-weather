@@ -10,8 +10,7 @@ import java.util.Map
 import java.io._
 import java.util.{Date, Properties}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord, ProducerConfig}
-import scala.util.Random
-import kafka.producer.KeyedMessage
+import org.apache.kafka.clients.admin.{NewTopic, AdminClient, ListTopicsOptions}
 
 // JSON Structure of OpenweatherMap API
 case class Coord(lon: Double, lat: Double)
@@ -28,9 +27,21 @@ object TemperatureProducer extends App {
     val BROKER_URL = sys.env("BROKER_URL") // "localhost:9092"
     val KAFKA_TOPIC = "city-temperatures"
 
-    def initialiseProducer(brokerURL: String): KafkaProducer[String, String] = {
+    // The is actually not necessary! The topic is created by itself
+    def createTopic(): Unit = {
         val props = new Properties()
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerURL)
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BROKER_URL)
+        props.put(ProducerConfig.CLIENT_ID_CONFIG, "ScalaProducerExample")
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+        val localKafkaAdmin = AdminClient.create(props)
+
+        // localKafkaAdmin.createTopics(List(new NewTopic(KAFKA_TOPIC, 1, 1)))
+    }
+
+    def initialiseProducer(): KafkaProducer[String, String] = {
+        val props = new Properties()
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BROKER_URL)
         props.put(ProducerConfig.CLIENT_ID_CONFIG, "ScalaProducerExample")
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
@@ -60,7 +71,8 @@ object TemperatureProducer extends App {
     }
 
     // Kafka
-    val producer = initialiseProducer(BROKER_URL)
+    // createTopic()
+    val producer = initialiseProducer()
 
     while (true) {
         val dataString = getDataString();
@@ -71,7 +83,7 @@ object TemperatureProducer extends App {
         implicit val requiredDataFormat = jsonFormat3(RequiredDataPoint)
 
         for (dataPoint <- transformedDataList) {
-            Thread.sleep(200)
+            Thread.sleep(2000)
             val data = new ProducerRecord[String, String](KAFKA_TOPIC, null, dataPoint.toJson.compactPrint)
             producer.send(data)
             println(data)
