@@ -12,7 +12,7 @@ export function kafkaFakeSubscribe(topic, handleMessageFunc) {
         () => {
             const newTemperature = filledData.map(element => {
                 const minimalChange = getRandomInRange(-8, 8, 3)
-                element["temperature_celsius"] += minimalChange
+                element["temperatureKelvin"] += minimalChange
                 return element
             })
 

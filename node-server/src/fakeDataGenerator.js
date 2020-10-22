@@ -18,10 +18,10 @@ export const createOneDataPoint = () => {
     // const temp_cels = getRandomInRange(-273.15, 50, 3)
     const temp_cels = getRandomInRange(-0, 50, 3)
     return {
-        "temperature_celsius": temp_cels,
+        "temperatureKelvin": temp_cels,
         "coordinates": {
-            "Latitude": latitude,
-            "Longitude": longitude
+            "lat": latitude,
+            "lon": longitude
         }
     }
 }
