@@ -29,7 +29,7 @@ export const setupConsumer = (client, topic, funcOnMessageReceive) => {
 
     consumer.on('message', (message) => {
         console.log("message.value: ", message.value);
-        funcOnMessageReceive(message.value);
+        funcOnMessageReceive("[" + message.value + "]");
     })
 
     consumer.on('error', function (err) {
