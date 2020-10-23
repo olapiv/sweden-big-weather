@@ -1,33 +1,14 @@
+// This is the first implementation. NOT BEING USE ANYMORE! This creates one 
+// client & consumer per socket connection.
+
 // Original here: https://gist.github.com/drochgenius/485cdb9e022618276be241a9a7247e5e#file-consumer-ts
 
 import kafkaNode from 'kafka-node';
 const { KafkaClient, Consumer, Message, Offset, OffsetFetchRequest, ConsumerOptions } = kafkaNode;
-import sampleJSON from '../static/sampleData.json';
-import { filledData, getRandomInRange } from './fakeDataGenerator.js';
 
 const KAFKA_HOST = 'kafka:9092';
 
-export function kafkaFakeSubscribe(topic, handleMessageFunc) {
-    setInterval(
-        () => {
-            const newTemperature = filledData.map(element => {
-                const minimalChange = getRandomInRange(-8, 8, 3)
-                element["temperatureKelvin"] += minimalChange
-                return element
-            })
-
-            const dataString = JSON.stringify(newTemperature);
-            // const dataString = JSON.stringify(sampleJSON);
-
-            handleMessageFunc(dataString)
-        },
-        2000
-    )
-}
-
 export function kafkaSubscribe(topic, handleMessageFunc) {
-
-    // TODO: Think about having one continuous client, as a function parameter
 
     // New KafkaClient connects directly to Kafka brokers.
     const client = new KafkaClient(KAFKA_HOST, 3000, 3000, true );
@@ -68,5 +49,4 @@ export function kafkaSubscribe(topic, handleMessageFunc) {
         );
     });
 
-    // TODO: Perhaps return Consumer, so it can be cancelled when the browser closes
 }

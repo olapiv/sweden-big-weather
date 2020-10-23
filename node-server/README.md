@@ -13,7 +13,7 @@ temperature points are visualised on a map using D3.js.
 
 ## Run
 
-1. Start
+1. Start (npm version: 6.14.7)
 
     ```bash
         npm start
