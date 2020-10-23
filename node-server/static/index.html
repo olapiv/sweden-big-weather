@@ -43,18 +43,6 @@
                 }
             );
 
-            const drawCircles = (circles) => {
-                circles
-                    .attr("cx", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[0])
-                    .attr("cy", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[1])
-                    .attr("r", 2.5)
-                    .attr("fill", (d) => {
-                        // const tempRatio = (d.temperature_celsius + 273.15) / 320 // Max 50 degrees
-                        // return "hsl(" + tempRatio * 360 + ",100%,50%)";
-                        return "hsl(" + Math.random() * 360 + ",100%,50%)";
-                    });
-            }
-
             let drawCoordinates = (dataArray) =>  {
 
                 // Stackoverflow: https://stackoverflow.com/a/27171893/9068781
@@ -64,16 +52,17 @@
 
                 // DATA JOIN
                 // Join new data with old elements, if any.
-                var circle = g.selectAll("circle").data(dataArray, (d) => d.coordinates.Longitude + d.coordinates.Longitude);
+                var circle = g.selectAll("circle").data(dataArray, (d) => d.coordinates.lon + d.coordinates.lat);
 
                 // ENTER
                 // Create new elements as needed.
                 circle.enter().append("circle")
-                    .attr("cx", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[0])
-                    .attr("cy", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[1])
-                    .attr("r", 1)
+                    .attr("cx", (d) => projection([d.coordinates.lon, d.coordinates.lat])[0])
+                    .attr("cy", (d) => projection([d.coordinates.lon, d.coordinates.lat])[1])
+                    .attr("r", 2)
                     .attr("fill", (d) => {
-                        const tempRatio = (d.temperature_celsius + 30) / 80 // 30-50 degrees
+                        const tempCels = d.temperatureKelvin - 273.15
+                        const tempRatio = (tempCels + 20) / 65 // -20 <-> 45 degrees
                         return "hsla(" + (1 - tempRatio) * 240 + ",100%,50%, 0.5)";
                     });
 
@@ -81,17 +70,18 @@
                 // Update old elements as needed.
                 circle
                     .transition().duration(1000)
-                    .attr("cx", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[0]+ Math.random())
-                    .attr("cy", (d) => projection([d.coordinates.Longitude, d.coordinates.Latitude])[1]+ Math.random())
+                    .attr("cx", (d) => projection([d.coordinates.lon, d.coordinates.lat])[0] + Math.random())
+                    .attr("cy", (d) => projection([d.coordinates.lon, d.coordinates.lat])[1] + Math.random())
                     .attr("fill", (d) => {
-                        const tempRatio = (d.temperature_celsius + 30) / 80 // 30-50 degrees
+                        const tempCels = d.temperatureKelvin - 273.15
+                        const tempRatio = (tempCels + 20) / 65 // -20 <-> 45 degrees
                         return "hsla(" + (1 - tempRatio) * 240 + ",100%,50%, 0.5)";
                     })
 
                 // TODO: Probably required to remove this, in case we don't always update everything at once
                 // EXIT
                 // Remove old elements as needed.
-                circle.exit().remove();                        
+                // circle.exit().remove();                        
 
             }
 

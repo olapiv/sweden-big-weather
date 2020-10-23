@@ -25,5 +25,5 @@ Due to geographical or urban conditions, weather stations are not distributed pe
 1. Run the Docker container in interactive mode
 
     ```bash
-        docker-compose up -rm
+        docker-compose up
     ```
