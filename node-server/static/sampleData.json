@@ -1,128 +1,128 @@
 [
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.760883333,
-            "Longitude": 9.898933333
+            "lat": 58.760883333,
+            "lon": 9.898933333
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 47.61,
-            "Longitude": -122.33
+            "lat": 47.61,
+            "lon": -122.33
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.78,
-            "Longitude": 9.90
+            "lat": 58.78,
+            "lon": 9.90
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.76235,
-            "Longitude": 9.89825
+            "lat": 58.76235,
+            "lon": 9.89825
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.7613,
-            "Longitude": 9.91
+            "lat": 58.7613,
+            "lon": 9.91
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.7622,
-            "Longitude": 9.928
+            "lat": 58.7622,
+            "lon": 9.928
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.76271666666667,
-            "Longitude": 9.8981
+            "lat": 58.76271666666667,
+            "lon": 9.8981
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.76363333333333,
-            "Longitude": 9.897883333333333
+            "lat": 58.76363333333333,
+            "lon": 9.897883333333333
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.7632,
-            "Longitude": 9.897966666666667
+            "lat": 58.7632,
+            "lon": 9.897966666666667
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.76405,
-            "Longitude": 9.89765
+            "lat": 58.76405,
+            "lon": 9.89765
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.76455,
-            "Longitude": 9.897516666666666
+            "lat": 58.76455,
+            "lon": 9.897516666666666
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.764833333333335,
-            "Longitude": 9.89745
+            "lat": 58.764833333333335,
+            "lon": 9.89745
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.765033333333335,
-            "Longitude": 9.897416666666667
+            "lat": 58.765033333333335,
+            "lon": 9.897416666666667
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.76546666666667,
-            "Longitude": 9.897266666666667
+            "lat": 58.76546666666667,
+            "lon": 9.897266666666667
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.765883333333335,
-            "Longitude": 9.897116666666667
+            "lat": 58.765883333333335,
+            "lon": 9.897116666666667
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.76631666666667,
-            "Longitude": 9.897
+            "lat": 58.76631666666667,
+            "lon": 9.897
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 37.94745,
-            "Longitude": 23.63708
+            "lat": 37.94745,
+            "lon": 23.63708
         }
     },
     {
-        "temperature_celsius": 30,
+        "temperatureKelvin": 30,
         "coordinates": {
-            "Latitude": 58.766816666666664,
-            "Longitude": 9.896883333333333
+            "lat": 58.766816666666664,
+            "lon": 9.896883333333333
         }
     }
 ]
