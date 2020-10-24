@@ -34,7 +34,7 @@ object Engine {
 
     val BROKER_URL = sys.env("BROKER_URL") // "kafka:9092"
     val ZOOKEEPER_URL = sys.env("ZOOKEEPER_URL") // "zookeeper:2181"
-    val CASSANDRA_URL = sys.env("CASSANDRA_URL") // "cassandra"
+    val CASSANDRA_HOST = sys.env("CASSANDRA_HOST") // "cassandra"
     val KAFKA_PRODUCING_TOPIC = "grid-temperatures"
     val KAFKA_CONSUMING_TOPIC = "city-temperatures"
 
@@ -48,7 +48,7 @@ object Engine {
     }
 
     def initialiseCassandra(): Session  = {
-        val cluster = Cluster.builder().addContactPoint(CASSANDRA_URL).build() 
+        val cluster = Cluster.builder().addContactPoint(CASSANDRA_HOST).build() 
         val session = cluster.connect()
         session.execute("CREATE KEYSPACE IF NOT EXISTS weather_keyspace WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
         session.execute("CREATE TABLE IF NOT EXISTS weather_keyspace.city_temps (coords_json text PRIMARY KEY, temp_kelvin double);")
@@ -60,7 +60,7 @@ object Engine {
         val sparkSess = SparkSession
               .builder()
               .appName("Calculating Temperatures")
-              .config("spark.cassandra.connection.host", CASSANDRA_URL)
+              .config("spark.cassandra.connection.host", CASSANDRA_HOST)
               .config("spark.cassandra.connection.port", "9042")
               .master("local[2]")
               .getOrCreate();

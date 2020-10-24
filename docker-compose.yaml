@@ -42,7 +42,7 @@ services:
     environment:
       BROKER_URL: kafka:9092
       ZOOKEEPER_URL: zookeeper:2181
-      CASSANDRA_URL: cassandra
+      CASSANDRA_HOST: cassandra
     depends_on:
       - cassandra
       - kafka
