@@ -37,18 +37,18 @@ services:
       WEATHER_API_TOKEN: f857d120fca3c9d9138f63e95df28464
     depends_on:
       - kafka
-    #logging:
-    #  driver: none
+    logging:
+     driver: none
 
-  # sparkstreaming:
-  #   build: ./sparkstreaming
-  #   environment:
-  #     BROKER_URL: kafka:9092
-  #     ZOOKEEPER: kafka:2181
-  #     CASSANDRA: cassandra
-  #   depends_on:
-  #     - cassandra
-  #     - kafka
+  sparkstreaming:
+    build: ./sparkstreaming
+    environment:
+      BROKER_URL: kafka:9092
+      ZOOKEEPER: zookeeper:2181
+      CASSANDRA: cassandra
+    depends_on:
+      - cassandra
+      - kafka
 
   node-server:
     build: ./node-server
