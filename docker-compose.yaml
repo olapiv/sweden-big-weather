@@ -1,16 +1,25 @@
 version: "3.8"
 services:
+  cassandra:
+    image: cassandra:3.11.8
+    expose:
+      - 7000
+      - 7001
+      - 7199
+      - 9042
+      - 9160
+
   zookeeper:
-    image: 'bitnami/zookeeper:latest'
+    image: "bitnami/zookeeper:latest"
     ports:
-      - '2181:2181'
+      - "2181:2181"
     environment:
       - ALLOW_ANONYMOUS_LOGIN=yes
 
   kafka:
-    image: 'bitnami/kafka:latest'
+    image: "bitnami/kafka:latest"
     ports:
-      - '9092:9092'
+      - "9092:9092"
     environment:
       - ALLOW_PLAINTEXT_LISTENER=yes
       - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
@@ -41,6 +50,6 @@ services:
   node-server:
     build: ./node-server
     ports:
-      - '8001:8001'
+      - "8001:8001"
     depends_on:
       - kafka
