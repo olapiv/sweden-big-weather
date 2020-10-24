@@ -28,15 +28,15 @@ services:
     depends_on:
       - kafka
 
-  # sparkstreaming:
-  #   build: ./sparkstreaming
-  #   environment:
-  #     BROKER_URL: kafka:9092
-  #     ZOOKEEPER: kafka:2181
-  #     CASSANDRA: cassandra
-  #   depends_on:
-  #     - cassandra
-  #     - kafka
+  sparkstreaming:
+    build: ./sparkstreaming
+    environment:
+      BROKER_URL: kafka:9092
+      ZOOKEEPER: zookeeper:2181
+      CASSANDRA: cassandra
+    depends_on:
+      - cassandra
+      - kafka
 
   node-server:
     build: ./node-server

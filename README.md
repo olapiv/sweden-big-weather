@@ -12,7 +12,7 @@ Due to geographical or urban conditions, weather stations are not distributed pe
 
 - Rest API call in Spark: https://stackoverflow.com/questions/41799578/restapi-service-call-from-spark-streaming
 
-- Websocket in Spark: https://www.nexmo.com/blog/2018/10/15/create-websocket-server-spark-framework-dr
+- D3.js Tutorial for Maps: https://lenses.io/blog/2019/11/visualize-spatial-data-from-apache-kafka-with-d3/
 
 ## Build
 
