@@ -8,6 +8,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.spark.streaming.kafka._
 import kafka.serializer.{DefaultDecoder, StringDecoder}
+import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.SparkConf
 import org.apache.spark.streaming._
 import org.apache.spark.streaming.kafka._
@@ -49,17 +50,28 @@ object Engine {
     def initialiseCassandra(): Session  = {
         val cluster = Cluster.builder().addContactPoint(CASSANDRA_URL).build() 
         val session = cluster.connect()
-        session.execute("CREATE KEYSPACE IF NOT EXISTS avg_space WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
-        session.execute("CREATE TABLE IF NOT EXISTS avg_space.avg (key text PRIMARY KEY, weather text);")
+        session.execute("CREATE KEYSPACE IF NOT EXISTS weather_keyspace WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
+        session.execute("CREATE TABLE IF NOT EXISTS weather_keyspace.city_temps (coords_json text PRIMARY KEY, temp_kelvin double);")
         session
     }
 
-    def initialiseStreamingContext(): StreamingContext = {
-      // Spark Stream context with 2 working threads and batch interval of 1 sec.
-      val conf = new SparkConf().set("spark.cassandra.connection.host", CASSANDRA_URL).setMaster("local[2]").setAppName("Spark Streaming - Temperatures")
-      val ssc = new StreamingContext(conf, Seconds(1))
-      ssc.checkpoint("file:///tmp/spark/checkpoint")
-      ssc
+    def initialiseSparkSession(): SparkSession = {
+        // 2 working threads
+        val sparkSess = SparkSession
+              .builder()
+              .appName("Calculating Temperatures")
+              .config("spark.cassandra.connection.host", CASSANDRA_URL)
+              .config("spark.cassandra.connection.port", "9042")
+              .master("local[2]")
+              .getOrCreate();
+        sparkSess
+    }
+
+    def initialiseStreamingContext(sparkSess: SparkSession): StreamingContext = {
+        // Batch interval of 1 sec
+        val ssc = new StreamingContext(sparkSess.sparkContext, Seconds(1))
+        ssc.checkpoint("file:///tmp/spark/checkpoint")
+        ssc
     }
 
     def initialiseKafkaStream(ssc: StreamingContext): InputDStream[(String, String)] = {
@@ -80,7 +92,6 @@ object Engine {
                     implicit val coordFormat = jsonFormat2(Coord)
                     implicit val gridFormat = jsonFormat2(GridTempDataPoint)
                     val gridData = GridTempDataPoint(record._2, record._1)
-                    // val message = new ProducerRecord[String, String](KAFKA_PRODUCING_TOPIC, record.asInstanceOf[String])
                     val message = new ProducerRecord[String, String](KAFKA_PRODUCING_TOPIC, null, gridData.toJson.compactPrint)
                     producer.send(message)
                 })
@@ -89,34 +100,41 @@ object Engine {
         })
     }
 
-    val session = initialiseCassandra()
-    val ssc = initialiseStreamingContext()
+    val cassSession = initialiseCassandra()
+    val sparkSess = initialiseSparkSession()
+    val ssc = initialiseStreamingContext(sparkSess)
+
     val messages = initialiseKafkaStream(ssc)
-
-
-    // Parse messages
-    println("MESSAGES!!!! " + messages)
-
     val parsedDataPairs = messages.map(w => {
         implicit val coordFormat = jsonFormat2(Coord)
         implicit val tempFormat = jsonFormat3(CityTempDataPoint)
         (w._2).parseJson.convertTo[CityTempDataPoint]
     }).map(m => {
-        // implicit val coordFormat = jsonFormat2(Coord)
         (m.coordinates, m.temperatureKelvin)
-        // (m.coordinates.toJson.compactPrint, m.temperatureKelvin)
     })
-    println("PAIRS!!!! " + parsedDataPairs)
+    produceNewMessages(parsedDataPairs) // Just for fun
 
-    // parsedDataPairs.saveToCassandra("avg_space", "avg", SomeColumns("key", "weather"))
+    // Save to single data point to Cassandra
+    val cassandraDataPairs = parsedDataPairs.map(m => {
+        implicit val coordFormat = jsonFormat2(Coord)
+        (m._1.toJson.compactPrint, m._2)
+    })
+    cassandraDataPairs.saveToCassandra("weather_keyspace", "city_temps", SomeColumns("coords_json", "temp_kelvin"))
 
-    // TODO: Retrieve from Cassandra
+    // Retrieve multiple data points from Cassandra
+    // TODO: Filter data
+    val df = sparkSess.read.format("org.apache.spark.sql.cassandra")
+        .options(scala.collection.immutable.Map( "table" -> "city_temps", "keyspace" -> "weather_keyspace"))
+        .load()
+    df.show()
+
     // TODO: Do calculations
 
-    produceNewMessages(parsedDataPairs)
+    // TODO: Forward to Kafka
+    // produceNewMessages(calculatedDataPairs)
 
     ssc.start()
     ssc.awaitTermination()
-    session.close()
+    cassSession.close()
   }
 }
