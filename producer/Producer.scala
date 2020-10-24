@@ -18,7 +18,7 @@ case class MainEntry(temp: Double)
 case class Place(coord: Coord, main: MainEntry, name: String)
 case class PlaceList(list: List[Place])
 
-case class RequiredDataPoint(temperatureKelvin: Double, coordinates: Coord, city: String)
+case class RequiredDataPoint(lat: Double, lon:  Double,temperatureKelvin: Double)
 
 
 object TemperatureProducer extends App {

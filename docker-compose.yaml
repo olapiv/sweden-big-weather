@@ -19,6 +19,16 @@ services:
       - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
     depends_on:
       - zookeeper
+  cassandra:
+    image: cassandra:3.11.8
+    expose:
+      - 7000
+      - 7001
+      - 7199
+      - 9042
+      - 9160
+    ports:
+      - "9042:9042"
 
   producer:
     build: ./producer
@@ -27,6 +37,8 @@ services:
       WEATHER_API_TOKEN: f857d120fca3c9d9138f63e95df28464
     depends_on:
       - kafka
+    #logging:
+    #  driver: none
 
   # sparkstreaming:
   #   build: ./sparkstreaming
@@ -44,3 +56,12 @@ services:
       - '8001:8001'
     depends_on:
       - kafka
+
+  sparksql:
+    build: ./sparksql
+    environment:
+      CASSANDRA: cassandra
+    depends_on:
+      - cassandra
+      - sparkstreaming
+      
