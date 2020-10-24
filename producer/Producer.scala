@@ -35,7 +35,7 @@ object TemperatureProducer extends App {
     def createTopic(): Unit = {
         val props = new Properties()
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BROKER_URL)
-        props.put(ProducerConfig.CLIENT_ID_CONFIG, "ScalaProducerExample")
+        props.put(ProducerConfig.CLIENT_ID_CONFIG, "CityTemperatureProducer")
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
         val localKafkaAdmin = AdminClient.create(props)
@@ -46,7 +46,7 @@ object TemperatureProducer extends App {
     def initialiseProducer(): KafkaProducer[String, String] = {
         val props = new Properties()
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BROKER_URL)
-        props.put(ProducerConfig.CLIENT_ID_CONFIG, "ScalaProducerExample")
+        props.put(ProducerConfig.CLIENT_ID_CONFIG, "CityTemperatureProducer")
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
         new KafkaProducer[String, String](props)
@@ -94,12 +94,12 @@ object TemperatureProducer extends App {
             implicit val requiredDataFormat = jsonFormat3(RequiredDataPoint)
 
             for (dataPoint <- transformedDataList) {
-                Thread.sleep(20)
+                Thread.sleep(10000)
                 val data = new ProducerRecord[String, String](KAFKA_TOPIC, null, dataPoint.toJson.compactPrint)
                 producer.send(data)
                 println(data)
             }
-            Thread.sleep(3000)
+            Thread.sleep(120000)
         }
     }
 

@@ -10,5 +10,6 @@ libraryDependencies ++= Seq(
   "org.apache.spark" % "spark-streaming_2.11" % "2.2.1",
   "org.apache.spark" % "spark-streaming-kafka-0-8_2.11" % "2.2.1",
   ("com.datastax.spark" %% "spark-cassandra-connector" % "2.4.0").exclude("io.netty", "netty-handler"),
-  ("com.datastax.cassandra" % "cassandra-driver-core" % "3.0.0").exclude("io.netty", "netty-handler")
+  ("com.datastax.cassandra" % "cassandra-driver-core" % "3.0.0").exclude("io.netty", "netty-handler"),
+  "io.spray" %%  "spray-json" % """|1.3.5""".stripMargin
 )
