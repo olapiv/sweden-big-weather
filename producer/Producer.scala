@@ -18,7 +18,7 @@ case class MainEntry(temp: Double)
 case class Place(coord: Coord, main: MainEntry, name: String)
 case class PlaceList(list: List[Place])
 
-case class RequiredDataPoint(temperatureKelvin: Double, coordinates: Coord, city: String)
+case class RequiredDataPoint(lat: Double, lon:  Double,temperatureKelvin: Double)
 
 
 object TemperatureProducer extends App {
@@ -88,14 +88,14 @@ object TemperatureProducer extends App {
             println(cityChunkString)
             val dataString = getDataString(cityChunkString);
             val placeList = parseJSON(dataString)
-            val transformedDataList = placeList.list.map(x => RequiredDataPoint(x.main.temp, x.coord, x.name))
+            val transformedDataList = placeList.list.map(x => (x.coord.lat, x.coord.lon, x.main.temp))
 
             implicit val coordFormat = jsonFormat2(Coord)
             implicit val requiredDataFormat = jsonFormat3(RequiredDataPoint)
 
             for (dataPoint <- transformedDataList) {
                 Thread.sleep(20)
-                val data = new ProducerRecord[String, String](KAFKA_TOPIC, null, dataPoint.toJson.compactPrint)
+                val data = new ProducerRecord[String, String](KAFKA_TOPIC, null, dataPoint.toString)
                 producer.send(data)
                 println(data)
             }
