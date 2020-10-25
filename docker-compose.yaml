@@ -2,6 +2,8 @@ version: "3.8"
 services:
   cassandra:
     image: cassandra:3.11.8
+    ports:
+        - "9042:9042"
     expose:
       - 7000
       - 7001
