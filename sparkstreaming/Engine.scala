@@ -7,7 +7,7 @@ import com.datastax.spark.connector.SomeColumns
 import com.datastax.spark.connector.streaming._
 import kafka.serializer.StringDecoder
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{SparkSession, DataFrame, Dataset}
 import org.apache.spark.streaming.{StreamingContext, Seconds}
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
 import org.apache.spark.streaming.kafka._
@@ -19,6 +19,8 @@ case class Coord(lon: Double, lat: Double)
 case class CityTempDataPoint(temperatureKelvin: Double, coordinates: Coord, city: String)
 case class GridTempDataPoint(temperatureKelvin: Double, coordinates: Coord)
 
+case class CassDataPoint(lat: Double, lon: Double, temp_kelvin: Double)
+
 object Engine {
 
   def main(args: Array[String]) {
@@ -28,6 +30,12 @@ object Engine {
     val CASSANDRA_HOST = sys.env("CASSANDRA_HOST") // "cassandra"
     val KAFKA_PRODUCING_TOPIC = "grid-temperatures"
     val KAFKA_CONSUMING_TOPIC = "city-temperatures"
+
+    //  Sweden coordinates:
+    val MIN_LON = 10.5;
+    val MAX_LON = 24.9;
+    val MIN_LAT = 55.3;
+    val MAX_LAT = 69.1;
 
     def initialiseProducer(): KafkaProducer[String, String] = {
         val props = new Properties()
@@ -42,6 +50,7 @@ object Engine {
         val cluster = Cluster.builder().addContactPoint(CASSANDRA_HOST).build()
         val session = cluster.connect()
         session.execute("CREATE KEYSPACE IF NOT EXISTS weather_keyspace WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
+        // session.execute("DROP TABLE weather_keyspace.city_temps;")
         session.execute("CREATE TABLE IF NOT EXISTS weather_keyspace.city_temps (lat double, lon double, temp_kelvin double, PRIMARY KEY ((lat, lon)));")
         session
     }
@@ -55,6 +64,7 @@ object Engine {
               .config("spark.cassandra.connection.port", "9042")
               .master("local[2]")
               .getOrCreate();
+        sparkSess.sparkContext.setLogLevel("WARN")
         sparkSess
     }
 
@@ -91,12 +101,29 @@ object Engine {
     //     })
     // }
 
+    def getAllCitiesInBlock(sparkSess: SparkSession, minLat: Double, maxLat: Double, minLon: Double, maxLon: Double): Dataset[CassDataPoint] = {
+        import sparkSess.implicits._
+
+        sparkSess
+            .read
+            .format("org.apache.spark.sql.cassandra")
+            .options(scala.collection.immutable.Map(
+                "keyspace" -> "weather_keyspace",
+                "table" -> "city_temps"
+            ))
+            .load().as[CassDataPoint].filter(x =>
+                x.lat > minLat &&
+                x.lat < maxLat &&
+                x.lon > minLon &&
+                x.lon < maxLon
+            )
+    }
+
     val cassSession = initialiseCassandra()
     val sparkSess = initialiseSparkSession()
     val ssc = initialiseStreamingContext(sparkSess)
 
     val messages = initialiseKafkaStream(ssc)
-    println("MESSAGE RECEIVED AT CONSUMER" + messages)
     val parsedDataPairs = messages.map(w => {
         implicit val coordFormat = jsonFormat2(Coord)
         implicit val tempFormat = jsonFormat3(CityTempDataPoint)
@@ -104,47 +131,16 @@ object Engine {
     }).map(m => {
         (m.coordinates.lat, m.coordinates.lon , m.temperatureKelvin)
     })
-   // produceNewMessages(parsedDataPairs) // Just for fun
 
-    // Save to single data point to Cassandra
-    val cassandraDataPairs = parsedDataPairs.map(m => {
-        implicit val coordFormat = jsonFormat2(Coord)
-        (m._1, m._2, m._3)
-    })
-    cassandraDataPairs.saveToCassandra("weather_keyspace", "city_temps", SomeColumns("lat", "lon", "temp_kelvin"))
+    parsedDataPairs.saveToCassandra("weather_keyspace", "city_temps", SomeColumns("lat", "lon", "temp_kelvin"))
+
+    // TODO: Calculate lon & lat boundaries for city
 
     // Retrieve multiple data points from Cassandra
-    // TODO: Filter data
+    val ds = getAllCitiesInBlock(sparkSess, MIN_LAT, MAX_LAT, MIN_LON, MAX_LON)
+    ds.show()
 
-    //def initialiseCellsForGrid(): DataFrame = {
-        //Thread.sleep(5000)
-        import sparkSess.implicits._
-
-        val df = sparkSess.read.format("org.apache.spark.sql.cassandra")
-            .options(scala.collection.immutable.Map( "table" -> "city_temps", "keyspace" -> "weather_keyspace"))
-            .load()
-        df.show()
-
-
-        df.select("lat").printSchema()
-
-        //val Row(minLat:Double, minLon:Double) = df.select(min("lat"),min("lon")).head
-        // val resolution = 0.01
-        // def cellUdf(minValue:Double, res:Double) = udf((x:Double) => ((x-minValue)/res).toInt)
-        // val latCoordsUdf = cellUdf(minLat, resolution)
-        // val lonCoordsUdf = cellUdf(minLon, resolution)
-
-        // val relData = df.withColumn("cell_x",latCoordsUdf($"lat")).withColumn("cell_y", lonCoordsUdf($"lon"))
-        // relData.show()
-        // relData
-
-
-    //}
-    //val location = initialiseCellsForGrid()
     // TODO: Do calculations
-    // def calculateAverageTemp(key: Double, Double, valu: Double, state: State[(Double, Double)]): (Double, Double) = {
-
-    // }
 
     // TODO: Forward to Kafka
     // produceNewMessages(calculatedDataPairs)
