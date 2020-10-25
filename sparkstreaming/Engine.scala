@@ -13,6 +13,7 @@ import org.apache.spark.streaming.dstream.{DStream, InputDStream}
 import org.apache.spark.streaming.kafka._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
+import org.apache.spark.sql.functions._
 
 case class Coord(lon: Double, lat: Double)
 case class CityTempDataPoint(temperatureKelvin: Double, coordinates: Coord, city: String)
@@ -38,10 +39,10 @@ object Engine {
     }
 
     def initialiseCassandra(): Session  = {
-        val cluster = Cluster.builder().addContactPoint(CASSANDRA_HOST).build() 
+        val cluster = Cluster.builder().addContactPoint(CASSANDRA_HOST).build()
         val session = cluster.connect()
         session.execute("CREATE KEYSPACE IF NOT EXISTS weather_keyspace WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
-        session.execute("CREATE TABLE IF NOT EXISTS weather_keyspace.city_temps (coords_json text PRIMARY KEY, temp_kelvin double);")
+        session.execute("CREATE TABLE IF NOT EXISTS weather_keyspace.city_temps (lat double, lon double, temp_kelvin double, PRIMARY KEY ((lat, lon)));")
         session
     }
 
@@ -74,51 +75,76 @@ object Engine {
         KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc, kafkaConf, topics)
     }
 
-    def produceNewMessages(data: DStream[(Coord, Double)]): Unit = {
-        data.foreachRDD(rdd => {
-            rdd.foreachPartition { partitionOfRecords =>
-                val producer = initialiseProducer()
-                partitionOfRecords.foreach(record => {
-                    implicit val coordFormat = jsonFormat2(Coord)
-                    implicit val gridFormat = jsonFormat2(GridTempDataPoint)
-                    val gridData = GridTempDataPoint(record._2, record._1)
-                    val message = new ProducerRecord[String, String](KAFKA_PRODUCING_TOPIC, null, gridData.toJson.compactPrint)
-                    producer.send(message)
-                })
-                producer.close()
-            }
-        })
-    }
+    // def produceNewMessages(data: DStream[(Coord, Double)]): Unit = {
+    //     data.foreachRDD(rdd => {
+    //         rdd.foreachPartition { partitionOfRecords =>
+    //             val producer = initialiseProducer()
+    //             partitionOfRecords.foreach(record => {
+    //                 implicit val coordFormat = jsonFormat2(Coord)
+    //                 implicit val gridFormat = jsonFormat2(GridTempDataPoint)
+    //                 val gridData = GridTempDataPoint(record._2, record._1)
+    //                 val message = new ProducerRecord[String, String](KAFKA_PRODUCING_TOPIC, null, gridData.toJson.compactPrint)
+    //                 producer.send(message)
+    //             })
+    //             producer.close()
+    //         }
+    //     })
+    // }
 
     val cassSession = initialiseCassandra()
     val sparkSess = initialiseSparkSession()
     val ssc = initialiseStreamingContext(sparkSess)
 
     val messages = initialiseKafkaStream(ssc)
+    println("MESSAGE RECEIVED AT CONSUMER" + messages)
     val parsedDataPairs = messages.map(w => {
         implicit val coordFormat = jsonFormat2(Coord)
         implicit val tempFormat = jsonFormat3(CityTempDataPoint)
         (w._2).parseJson.convertTo[CityTempDataPoint]
     }).map(m => {
-        (m.coordinates, m.temperatureKelvin)
+        (m.coordinates.lat, m.coordinates.lon , m.temperatureKelvin)
     })
-    produceNewMessages(parsedDataPairs) // Just for fun
+   // produceNewMessages(parsedDataPairs) // Just for fun
 
     // Save to single data point to Cassandra
     val cassandraDataPairs = parsedDataPairs.map(m => {
         implicit val coordFormat = jsonFormat2(Coord)
-        (m._1.toJson.compactPrint, m._2)
+        (m._1, m._2, m._3)
     })
-    cassandraDataPairs.saveToCassandra("weather_keyspace", "city_temps", SomeColumns("coords_json", "temp_kelvin"))
+    cassandraDataPairs.saveToCassandra("weather_keyspace", "city_temps", SomeColumns("lat", "lon", "temp_kelvin"))
 
     // Retrieve multiple data points from Cassandra
     // TODO: Filter data
-    val df = sparkSess.read.format("org.apache.spark.sql.cassandra")
-        .options(scala.collection.immutable.Map( "table" -> "city_temps", "keyspace" -> "weather_keyspace"))
-        .load()
-    df.show()
 
+    //def initialiseCellsForGrid(): DataFrame = {
+        //Thread.sleep(5000)
+        import sparkSess.implicits._
+
+        val df = sparkSess.read.format("org.apache.spark.sql.cassandra")
+            .options(scala.collection.immutable.Map( "table" -> "city_temps", "keyspace" -> "weather_keyspace"))
+            .load()
+        df.show()
+
+
+        df.select("lat").printSchema()
+
+        //val Row(minLat:Double, minLon:Double) = df.select(min("lat"),min("lon")).head
+        // val resolution = 0.01
+        // def cellUdf(minValue:Double, res:Double) = udf((x:Double) => ((x-minValue)/res).toInt)
+        // val latCoordsUdf = cellUdf(minLat, resolution)
+        // val lonCoordsUdf = cellUdf(minLon, resolution)
+
+        // val relData = df.withColumn("cell_x",latCoordsUdf($"lat")).withColumn("cell_y", lonCoordsUdf($"lon"))
+        // relData.show()
+        // relData
+
+
+    //}
+    //val location = initialiseCellsForGrid()
     // TODO: Do calculations
+    // def calculateAverageTemp(key: Double, Double, valu: Double, state: State[(Double, Double)]): (Double, Double) = {
+
+    // }
 
     // TODO: Forward to Kafka
     // produceNewMessages(calculatedDataPairs)
