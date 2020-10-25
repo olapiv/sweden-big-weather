@@ -7,6 +7,7 @@ import com.datastax.spark.connector.SomeColumns
 import com.datastax.spark.connector.streaming._
 import kafka.serializer.StringDecoder
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
@@ -14,6 +15,8 @@ import org.apache.spark.streaming.kafka._
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import org.apache.spark.sql.functions._
+// import org.apache.log4j.BasicConfigurator
+
 
 case class Coords(lon: Double, lat: Double)
 case class CityTempDataPoint(temperatureKelvin: Double, coordinates: Coords, city: String)
@@ -26,6 +29,8 @@ case class BoundaryCoords(topLeft: Coords, bottomRight: Coords)
 object Engine {
 
   def main(args: Array[String]) {
+
+    // BasicConfigurator.configure()
 
     val BROKER_URL = sys.env("BROKER_URL") // "kafka:9092"
     val ZOOKEEPER_URL = sys.env("ZOOKEEPER_URL") // "zookeeper:2181"
@@ -89,22 +94,20 @@ object Engine {
         KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc, kafkaConf, topics)
     }
 
-     def produceNewMessages(data: DStream[List[(Coords, Double)]]): Unit = {
-         data.foreachRDD(rdd => {
-             rdd.foreachPartition { partitionOfRecords =>
-                 val producer = initialiseProducer()
-                 partitionOfRecords.foreach(record => {
-                     record.foreach(gridEl =>  {
-                         implicit val coordFormat = jsonFormat2(Coords)
-                         implicit val gridFormat = jsonFormat2(GridTempDataPoint)
-                         val gridData = GridTempDataPoint(gridEl._2, gridEl._1)
-                         val message = new ProducerRecord[String, String](KAFKA_PRODUCING_TOPIC, null, gridData.toJson.compactPrint)
-                         producer.send(message)
-                     })
-                 })
-                 producer.close()
-             }
-         })
+     def produceNewMessages(sparkSess: SparkSession, data: RDD[(Coords, Double)]): Unit = {
+        import sparkSess.implicits._
+        data.foreachPartition { partitionOfRecords =>
+             val producer = initialiseProducer()
+             partitionOfRecords.foreach(record => {
+                 implicit val coordFormat = jsonFormat2(Coords)
+                 implicit val gridFormat = jsonFormat2(GridTempDataPoint)
+                 val gridData = GridTempDataPoint(record._2, record._1)
+                 val message = new ProducerRecord[String, String](KAFKA_PRODUCING_TOPIC, null, gridData.toJson.compactPrint)
+                 producer.send(message)
+             })
+             producer.close()
+         }
+
      }
 
     def getCityBlockBoundaries(cityCoords: Coords): BoundaryCoords = {
@@ -169,17 +172,26 @@ object Engine {
 
     parsedDataPairs.saveToCassandra("weather_keyspace", "city_temps", SomeColumns("lat", "lon", "temp_kelvin"))
 
-    val calculatedDataPairs = parsedDataPairs.map(m => {
+    parsedDataPairs.foreachRDD{ _ -> println("HEEEEEELLLLLLOOOOOOO") }
+
+    val aggDStream = collection.mutable.ArrayBuffer.empty[(Double, Double, Double)]
+    parsedDataPairs.foreachRDD(
+      aggDStream ++= _.collect()
+    )
+
+    aggDStream.toList.map(m => {
         val boundaryBlock = getCityBlockBoundaries(Coords(m._2, m._1))
         val cityDS = getAllCitiesInBlock(sparkSess, boundaryBlock)
         val gridDS = createNewGridDataset(sparkSess, boundaryBlock)
 
         // TODO: Do calculations
 
-        gridDS.rdd.map(m => (Coords(m.lon, m.lat), m.temp_kelvin)).collect.toList
-    })
+        val gridRDD = gridDS.rdd.map(m => (Coords(m.lon, m.lat), m.temp_kelvin))
 
-    produceNewMessages(calculatedDataPairs)
+        println("gridDS.collect(): " + gridDS.collect())
+
+        produceNewMessages(sparkSess, gridRDD)
+    })
 
     ssc.start()
     ssc.awaitTermination()
