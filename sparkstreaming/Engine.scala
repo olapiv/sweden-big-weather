@@ -1,28 +1,18 @@
 package sparkstreaming
 
-import java.util.HashMap
+import java.util.Properties
 
-import spray.json._
-import DefaultJsonProtocol._
-import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.kafka.common.serialization.StringDeserializer
-import org.apache.spark.streaming.kafka._
-import kafka.serializer.{DefaultDecoder, StringDecoder}
-import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
-import org.apache.spark.SparkConf
-import org.apache.spark.streaming._
-import org.apache.spark.streaming.kafka._
-import org.apache.spark.storage.StorageLevel
-import java.util.{Date, Properties}
-
-import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
-
-import scala.util.Random
-import org.apache.spark.sql.cassandra._
-import com.datastax.spark.connector._
-import com.datastax.driver.core.{Cluster, Host, Metadata, Session}
+import com.datastax.driver.core.{Cluster, Session}
+import com.datastax.spark.connector.SomeColumns
 import com.datastax.spark.connector.streaming._
-import org.apache.spark.streaming.dstream.{InputDStream, DStream}
+import kafka.serializer.StringDecoder
+import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.streaming.{StreamingContext, Seconds}
+import org.apache.spark.streaming.dstream.{DStream, InputDStream}
+import org.apache.spark.streaming.kafka._
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 case class Coord(lon: Double, lat: Double)
 case class CityTempDataPoint(temperatureKelvin: Double, coordinates: Coord, city: String)
