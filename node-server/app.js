@@ -5,7 +5,8 @@ import { setUpClient, setupConsumer } from './src/kafka.js';
 import { setupFakeConsumer } from './src/fakeDataGenerator.js';
 
 const PORT = 8001;
-const KAFKA_TOPIC = "city-temperatures"
+// const KAFKA_TOPIC = "city-temperatures"
+const KAFKA_TOPIC = "grid-temperatures"
 const LIVE = true // Listening to Kafka or not
 
 const app = express();

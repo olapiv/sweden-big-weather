@@ -27,7 +27,7 @@ The components we used were:
 - **Spark Streaming**, which would
 
     1. Listen to the Kafka's "city-temperatures" with a **Kafka Consumer**
-    2. Save it Cassandra
+    2. Save it **Cassandra**
     3. Define a block around the newly fetched city and query all cities temperatures inside it
     4. Create a fine grid within the block
     5. Calculate the temperature in every grid point, using all the queried city-temperatures and their distances towards the given grid point

@@ -1,87 +1,226 @@
 package sparkstreaming
 
-import java.util.HashMap
-import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.kafka.common.serialization.StringDeserializer
-import org.apache.spark.streaming.kafka._
-import kafka.serializer.{DefaultDecoder, StringDecoder}
-import org.apache.spark.SparkConf
-import org.apache.spark.streaming._
-import org.apache.spark.streaming.kafka._
-import org.apache.spark.storage.StorageLevel
-import java.util.{Date, Properties}
-import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord, ProducerConfig}
-import scala.util.Random
+import java.util.Properties
 
-import org.apache.spark.sql.cassandra._
-import com.datastax.spark.connector._
-import com.datastax.driver.core.{Session, Cluster, Host, Metadata}
+import com.datastax.driver.core.{Cluster, Session}
+import com.datastax.spark.connector.SomeColumns
 import com.datastax.spark.connector.streaming._
+import kafka.serializer.StringDecoder
+import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.streaming.dstream.{InputDStream, DStream}
+import org.apache.spark.streaming.kafka._
+import org.apache.spark.streaming.{Seconds, StreamingContext}
+import spray.json.DefaultJsonProtocol._
+import spray.json._
+
+import scala.collection.mutable.ArrayBuffer
+
+
+case class Coords(lon: Double, lat: Double)
+case class CityTempDataPoint(temperatureKelvin: Double, coordinates: Coords, city: String)
+case class GridTempDataPoint(temperatureKelvin: Double, coordinates: Coords)
+
+case class CassDataPoint(lat: Double, lon: Double, temp_kelvin: Double)
+
+case class BoundaryCoords(topLeft: Coords, bottomRight: Coords)
 
 object Engine {
+
   def main(args: Array[String]) {
 
-    // connect to Cassandra and make a keyspace and table as explained in the document
-    val cassandra = if (sys.env("CASSANDRA") != null) sys.env("CASSANDRA") else "127.0.0.1"
-    println("Cassandra: " + cassandra)
-    val cluster = Cluster.builder().addContactPoint(cassandra).build() 
-    
-    println("About to connect to cluster")
-    val session = cluster.connect()
-    println("Connected to cluster")
 
+    val BROKER_URL = sys.env("BROKER_URL") // "kafka:9092"
+    val ZOOKEEPER_URL = sys.env("ZOOKEEPER_URL") // "zookeeper:2181"
+    val CASSANDRA_HOST = sys.env("CASSANDRA_HOST") // "cassandra"
+    val KAFKA_PRODUCING_TOPIC = "grid-temperatures"
+    val KAFKA_CONSUMING_TOPIC = "city-temperatures"
 
-    println("About to execute creation of Keyspace")
-    // To execute a command on a connected Cassandra instance, you can use the execute command as below
-    session.execute("CREATE KEYSPACE IF NOT EXISTS avg_space WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
-    println("Created Keyspace")
+    //  Sweden coordinates:
+    val MIN_LON = 10.5;
+    val MAX_LON = 24.9;
+    val MIN_LAT = 55.3;
+    val MAX_LAT = 69.1;
 
-    println("About to execute creation of Table")
-    session.execute("CREATE TABLE IF NOT EXISTS avg_space.avg (key text PRIMARY KEY, weather text);")
-    println("Created Table")
+    val SIDE_LENGTH_SMALL_BLOCK: Double = 0.5 // lat/lon (TODO: Improve metric later)
 
-    // Spark Stream context with 2 working threads and batch interval of 1 sec. 
-    val conf = new SparkConf().set("spark.cassandra.connection.host", cassandra).setMaster("local[2]").setAppName("Spark Streaming - Temperatures")
-    val topics = Set("city-temperatures")
-    val ssc = new StreamingContext(conf, Seconds(1))
-    ssc.checkpoint("file:///tmp/spark/checkpoint")
-    // make a connection to Kafka and read (key, value) pairs from it
-    //val topics = ? 
+    def initialiseProducer(): KafkaProducer[String, String] = {
+        val props = new Properties()
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BROKER_URL)
+        props.put(ProducerConfig.CLIENT_ID_CONFIG, "GridTemperatureProducer")
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+        new KafkaProducer[String, String](props)
+    }
 
-    val brokers = if (sys.env("BROKER_URL") != null) sys.env("BROKER_URL") else "localhost:9092"
-    val zookeeper = if (sys.env("ZOOKEEPER") != null) sys.env("ZOOKEEPER") else "localhost:2181"
+    def initialiseCassandra(): Session  = {
+        val cluster = Cluster.builder().addContactPoint(CASSANDRA_HOST).build()
+        val session = cluster.connect()
+        session.execute("CREATE KEYSPACE IF NOT EXISTS weather_keyspace WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };")
+        // session.execute("DROP TABLE weather_keyspace.city_temps;")
+        session.execute("CREATE TABLE IF NOT EXISTS weather_keyspace.city_temps (lat double, lon double, temp_kelvin double, PRIMARY KEY ((lat, lon)));")
+        session
+    }
 
-    val kafkaConf = Map(
-        "metadata.broker.list" -> brokers, 
-        "zookeeper.connect" -> zookeeper, 
-        "group.id" -> "kafka-spark-streaming", 
-        "zookeeper.connection.timeout.ms" -> "1000")
-        
-    val messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc, kafkaConf, topics)
-    val pairs = messages.map(w => ((w._2).split(","))).map(m => (m(0), m(1)))
-    //println(messages)
+    def initialiseSparkSession(): SparkSession = {
+        // 2 working threads
+        val sparkSess = SparkSession
+              .builder()
+              .appName("Calculating Temperatures")
+              .config("spark.cassandra.connection.host", CASSANDRA_HOST)
+              .config("spark.cassandra.connection.port", "9042")
+              .master("local[2]")
+              .getOrCreate();
+        sparkSess.sparkContext.setLogLevel("WARN")
+        sparkSess
+    }
 
-    // measure the average value for each key in a stateful manner
-    // def mappingFunc(key: String, value: Option[Double], state: State[(Double, Int)]): (String, Double) = {
-    //   // Create a tuple to store the sum and counter
-    //   val (stateSum, stateCounter) = state.getOption.getOrElse(0.0d, 0)
-    //   // Then store the total from all states
-    //   val totalSum = value.getOrElse(0.0d) + stateSum
-    //   // Then store the total counter from all states
-    //   val totalCounter = stateCounter + 1
-    //   // update the tuple
-    //   state.update((totalSum, totalCounter))
-    //   // return the average value for each key
-    //   return (key, totalSum/totalCounter)
+    def initialiseStreamingContext(sparkSess: SparkSession): StreamingContext = {
+        // Batch interval of 1 sec
+        val ssc = new StreamingContext(sparkSess.sparkContext, Seconds(1))
+        ssc.checkpoint("file:///tmp/spark/checkpoint")
+        ssc
+    }
 
-    // }
-    // //use mapWithState to calculated the average value of each key in a statful manner
-    // val stateDstream = pairs.mapWithState(StateSpec.function(mappingFunc _))
+    def initialiseKafkaStream(ssc: StreamingContext): InputDStream[(String, String)] = {
+        val kafkaConf = Map(
+            "metadata.broker.list" -> BROKER_URL,
+            "zookeeper.connect" -> ZOOKEEPER_URL,
+            "group.id" -> "kafka-spark-streaming",
+            "zookeeper.connection.timeout.ms" -> "1000")
+        val topics = Set(KAFKA_CONSUMING_TOPIC)
+        KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc, kafkaConf, topics)
+    }
 
-    pairs.saveToCassandra("avg_space", "avg", SomeColumns("key", "weather"))
+    def produceNewMessages(data: DStream[(Coords, Double)]): Unit = {
+        data.foreachRDD(rdd => {
+            rdd.foreachPartition { partitionOfRecords =>
+                val producer = initialiseProducer()
+                partitionOfRecords.foreach(record => {
+                    implicit val coordFormat = jsonFormat2(Coords)
+                    implicit val gridFormat = jsonFormat2(GridTempDataPoint)
+                    val gridData = GridTempDataPoint(record._2, record._1)
+                    val message = new ProducerRecord[String, String](KAFKA_PRODUCING_TOPIC, null, gridData.toJson.compactPrint)
+                    producer.send(message)
+                })
+                producer.close()
+            }
+        })
+    }
+
+    def getCityBlockBoundaries(cityCoords: Coords): BoundaryCoords = {
+
+        // TODO: Calculate proper borders from cityCoords
+
+        BoundaryCoords(
+          Coords(MAX_LON, MIN_LAT),
+          Coords(MIN_LON, MAX_LAT)
+        )
+    }
+
+    def getAllCitiesInBlock(sparkSess: SparkSession, bounds: BoundaryCoords): Dataset[CassDataPoint] = {
+        import sparkSess.implicits._
+        sparkSess
+            .read
+            .format("org.apache.spark.sql.cassandra")
+            .options(scala.collection.immutable.Map(
+                "keyspace" -> "weather_keyspace",
+                "table" -> "city_temps"
+            ))
+            .load()
+            .as[CassDataPoint]
+            .filter(x =>
+                x.lat > bounds.topLeft.lat &&
+                x.lat < bounds.bottomRight.lat &&
+                x.lon > bounds.bottomRight.lon &&
+                x.lon < bounds.topLeft.lon
+            )
+    }
+
+    def createNewGridDataset(sparkSess: SparkSession, boundaryBlock: BoundaryCoords) : Dataset[CassDataPoint] = {
+        import sparkSess.implicits._
+        val deltaLat = boundaryBlock.topLeft.lat - boundaryBlock.bottomRight.lat
+        val deltaLon = boundaryBlock.topLeft.lon - boundaryBlock.bottomRight.lon
+        val numLatPoints = math.floor(deltaLat / SIDE_LENGTH_SMALL_BLOCK).toInt
+        val numLonPoints = math.floor(deltaLon / SIDE_LENGTH_SMALL_BLOCK).toInt
+        val numGridPoints = numLatPoints * numLonPoints
+
+        val gridCoords = (1 to numGridPoints).map( index =>
+            CassDataPoint(
+                boundaryBlock.bottomRight.lat + SIDE_LENGTH_SMALL_BLOCK * (math.ceil(index/numLonPoints) - 1),  // lat
+                boundaryBlock.topLeft.lon + SIDE_LENGTH_SMALL_BLOCK * ((index % numLonPoints) - 1),  // lon
+                290  // temp
+            )
+        )
+        gridCoords.toDS()
+    }
+
+    val cassSession = initialiseCassandra()
+    val sparkSess = initialiseSparkSession()
+    val ssc = initialiseStreamingContext(sparkSess)
+
+    val messages = initialiseKafkaStream(ssc)
+    val parsedDataPairs = messages.map(w => {
+        implicit val coordFormat = jsonFormat2(Coords)
+        implicit val tempFormat = jsonFormat3(CityTempDataPoint)
+        (w._2).parseJson.convertTo[CityTempDataPoint]
+    }).map(m => {
+        (m.coordinates.lat, m.coordinates.lon , m.temperatureKelvin)
+    })
+
+    parsedDataPairs.saveToCassandra("weather_keyspace", "city_temps", SomeColumns("lat", "lon", "temp_kelvin"))
+
+    // Just for fun
+    produceNewMessages(parsedDataPairs.map(m => (Coords(m._2, m._1), m._3)))
+
+    /* THIS CODE UNFORTUNALTELY DOES NOT WORK (SEE README):
+
+    def produceNewMessages(data: RDD[(Coords, Double)]): Unit = {
+        data.foreachPartition { partitionOfRecords =>
+            val producer = initialiseProducer()
+            partitionOfRecords.foreach(record => {
+                implicit val coordFormat = jsonFormat2(Coords)
+                implicit val gridFormat = jsonFormat2(GridTempDataPoint)
+                val gridData = GridTempDataPoint(record._2, record._1)
+                val message = new ProducerRecord[String, String](KAFKA_PRODUCING_TOPIC, null, gridData.toJson.compactPrint)
+                producer.send(message)
+            })
+            producer.close()
+        }
+    }
+
+    // Problem: aggDStream will only be instanciated once. It is not
+    // possible to collect() a DStream as it would be for a RDD.
+    val aggDStream = new ArrayBuffer[(Double, Double, Double)]()
+    parsedDataPairs.foreachRDD( rdd => if (!rdd.isEmpty) {
+        aggDStream ++= rdd.collect()
+    })
+
+    // Problem: this will only be executed once, since it is not
+    // from the DStream
+    aggDStream.foreach(m => {
+        val boundaryBlock = getCityBlockBoundaries(Coords(m._2, m._1))
+        val cityDS = getAllCitiesInBlock(sparkSess, boundaryBlock)
+        val gridDS = createNewGridDataset(sparkSess, boundaryBlock)
+
+        // TODO: Do calculations
+
+        val gridRDD = gridDS.rdd.map(m => (Coords(m.lon, m.lat), m.temp_kelvin))
+        produceNewMessages(gridRDD)
+
+        parsedDataPairs.foreachRDD( rdd => if (!rdd.isEmpty) println("Get going!") )
+    })
+
+    // The aggDStream will become larger and larger
+    parsedDataPairs.foreachRDD( rdd => if (!rdd.isEmpty) {
+        aggDStream.foreach(m => println("aggDStream: " + m._1 + " -- " + m._2))
+    })
+
+    */
 
     ssc.start()
     ssc.awaitTermination()
-    session.close()
+    cassSession.close()
   }
 }

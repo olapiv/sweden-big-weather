@@ -107,12 +107,11 @@ run_development.sh
 .metals/
 
 ### Project ###
-producer/project
-producer/.idea
 *.jar
 .ipynb_checkpoints/
 nohup.out
 
 ### SBT ###
+project/
 target/
 build.properties

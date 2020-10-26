@@ -1,16 +1,21 @@
 version: "3.8"
 services:
+  cassandra:
+    image: cassandra:3.11.8
+    expose:
+      - 9042
+
   zookeeper:
-    image: 'bitnami/zookeeper:latest'
+    image: "bitnami/zookeeper:latest"
     ports:
-      - '2181:2181'
+      - "2181:2181"
     environment:
       - ALLOW_ANONYMOUS_LOGIN=yes
 
   kafka:
-    image: 'bitnami/kafka:latest'
+    image: "bitnami/kafka:latest"
     ports:
-      - '9092:9092'
+      - "9092:9092"
     environment:
       - ALLOW_PLAINTEXT_LISTENER=yes
       - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
@@ -28,19 +33,19 @@ services:
     depends_on:
       - kafka
 
-  # sparkstreaming:
-  #   build: ./sparkstreaming
-  #   environment:
-  #     BROKER_URL: kafka:9092
-  #     ZOOKEEPER: kafka:2181
-  #     CASSANDRA: cassandra
-  #   depends_on:
-  #     - cassandra
-  #     - kafka
+  sparkstreaming:
+    build: ./sparkstreaming
+    environment:
+      BROKER_URL: kafka:9092
+      ZOOKEEPER_URL: zookeeper:2181
+      CASSANDRA_HOST: cassandra
+    depends_on:
+      - cassandra
+      - kafka
 
   node-server:
     build: ./node-server
     ports:
-      - '8001:8001'
+      - "8001:8001"
     depends_on:
       - kafka
