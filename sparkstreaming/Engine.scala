@@ -9,7 +9,7 @@ import kafka.serializer.StringDecoder
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
-import org.apache.spark.streaming.dstream.InputDStream
+import org.apache.spark.streaming.dstream.{InputDStream, DStream}
 import org.apache.spark.streaming.kafka._
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 import spray.json.DefaultJsonProtocol._
@@ -93,20 +93,21 @@ object Engine {
         KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc, kafkaConf, topics)
     }
 
-     def produceNewMessages(sparkSess: SparkSession, data: RDD[(Coords, Double)]): Unit = {
-        data.foreachPartition { partitionOfRecords =>
-             val producer = initialiseProducer()
-             partitionOfRecords.foreach(record => {
-                 implicit val coordFormat = jsonFormat2(Coords)
-                 implicit val gridFormat = jsonFormat2(GridTempDataPoint)
-                 val gridData = GridTempDataPoint(record._2, record._1)
-                 val message = new ProducerRecord[String, String](KAFKA_PRODUCING_TOPIC, null, gridData.toJson.compactPrint)
-                 producer.send(message)
-             })
-             producer.close()
-         }
-
-     }
+    def produceNewMessages(data: DStream[(Coords, Double)]): Unit = {
+        data.foreachRDD(rdd => {
+            rdd.foreachPartition { partitionOfRecords =>
+                val producer = initialiseProducer()
+                partitionOfRecords.foreach(record => {
+                    implicit val coordFormat = jsonFormat2(Coords)
+                    implicit val gridFormat = jsonFormat2(GridTempDataPoint)
+                    val gridData = GridTempDataPoint(record._2, record._1)
+                    val message = new ProducerRecord[String, String](KAFKA_PRODUCING_TOPIC, null, gridData.toJson.compactPrint)
+                    producer.send(message)
+                })
+                producer.close()
+            }
+        })
+    }
 
     def getCityBlockBoundaries(cityCoords: Coords): BoundaryCoords = {
 
@@ -170,6 +171,25 @@ object Engine {
 
     parsedDataPairs.saveToCassandra("weather_keyspace", "city_temps", SomeColumns("lat", "lon", "temp_kelvin"))
 
+    // Just for fun
+    produceNewMessages(parsedDataPairs.map(m => (Coords(m._2, m._1), m._3)))
+
+    /* THIS CODE UNFORTUNALTELY DOES NOT WORK (SEE README):
+
+    def produceNewMessages(data: RDD[(Coords, Double)]): Unit = {
+        data.foreachPartition { partitionOfRecords =>
+            val producer = initialiseProducer()
+            partitionOfRecords.foreach(record => {
+                implicit val coordFormat = jsonFormat2(Coords)
+                implicit val gridFormat = jsonFormat2(GridTempDataPoint)
+                val gridData = GridTempDataPoint(record._2, record._1)
+                val message = new ProducerRecord[String, String](KAFKA_PRODUCING_TOPIC, null, gridData.toJson.compactPrint)
+                producer.send(message)
+            })
+            producer.close()
+        }
+    }
+
     // Problem: aggDStream will only be instanciated once. It is not
     // possible to collect() a DStream as it would be for a RDD.
     val aggDStream = new ArrayBuffer[(Double, Double, Double)]()
@@ -187,7 +207,7 @@ object Engine {
         // TODO: Do calculations
 
         val gridRDD = gridDS.rdd.map(m => (Coords(m.lon, m.lat), m.temp_kelvin))
-        produceNewMessages(sparkSess, gridRDD)
+        produceNewMessages(gridRDD)
 
         parsedDataPairs.foreachRDD( rdd => if (!rdd.isEmpty) println("Get going!") )
     })
@@ -196,6 +216,8 @@ object Engine {
     parsedDataPairs.foreachRDD( rdd => if (!rdd.isEmpty) {
         aggDStream.foreach(m => println("aggDStream: " + m._1 + " -- " + m._2))
     })
+
+    */
 
     ssc.start()
     ssc.awaitTermination()
