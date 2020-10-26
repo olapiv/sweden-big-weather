@@ -8,14 +8,14 @@ import com.datastax.spark.connector.streaming._
 import kafka.serializer.StringDecoder
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
-import org.apache.spark.streaming.{Seconds, StreamingContext}
-import org.apache.spark.streaming.dstream.{DStream, InputDStream}
+import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.streaming.dstream.InputDStream
 import org.apache.spark.streaming.kafka._
+import org.apache.spark.streaming.{Seconds, StreamingContext}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import org.apache.spark.sql.functions._
-// import org.apache.log4j.BasicConfigurator
+
+import scala.collection.mutable.ArrayBuffer
 
 
 case class Coords(lon: Double, lat: Double)
@@ -30,7 +30,6 @@ object Engine {
 
   def main(args: Array[String]) {
 
-    // BasicConfigurator.configure()
 
     val BROKER_URL = sys.env("BROKER_URL") // "kafka:9092"
     val ZOOKEEPER_URL = sys.env("ZOOKEEPER_URL") // "zookeeper:2181"
@@ -95,7 +94,6 @@ object Engine {
     }
 
      def produceNewMessages(sparkSess: SparkSession, data: RDD[(Coords, Double)]): Unit = {
-        import sparkSess.implicits._
         data.foreachPartition { partitionOfRecords =>
              val producer = initialiseProducer()
              partitionOfRecords.foreach(record => {
@@ -172,14 +170,16 @@ object Engine {
 
     parsedDataPairs.saveToCassandra("weather_keyspace", "city_temps", SomeColumns("lat", "lon", "temp_kelvin"))
 
-    parsedDataPairs.foreachRDD{ _ -> println("HEEEEEELLLLLLOOOOOOO") }
+    // Problem: aggDStream will only be instanciated once. It is not
+    // possible to collect() a DStream as it would be for a RDD.
+    val aggDStream = new ArrayBuffer[(Double, Double, Double)]()
+    parsedDataPairs.foreachRDD( rdd => if (!rdd.isEmpty) {
+        aggDStream ++= rdd.collect()
+    })
 
-    val aggDStream = collection.mutable.ArrayBuffer.empty[(Double, Double, Double)]
-    parsedDataPairs.foreachRDD(
-      aggDStream ++= _.collect()
-    )
-
-    aggDStream.toList.map(m => {
+    // Problem: this will only be executed once, since it is not
+    // from the DStream
+    aggDStream.foreach(m => {
         val boundaryBlock = getCityBlockBoundaries(Coords(m._2, m._1))
         val cityDS = getAllCitiesInBlock(sparkSess, boundaryBlock)
         val gridDS = createNewGridDataset(sparkSess, boundaryBlock)
@@ -187,10 +187,14 @@ object Engine {
         // TODO: Do calculations
 
         val gridRDD = gridDS.rdd.map(m => (Coords(m.lon, m.lat), m.temp_kelvin))
-
-        println("gridDS.collect(): " + gridDS.collect())
-
         produceNewMessages(sparkSess, gridRDD)
+
+        parsedDataPairs.foreachRDD( rdd => if (!rdd.isEmpty) println("Get going!") )
+    })
+
+    // The aggDStream will become larger and larger
+    parsedDataPairs.foreachRDD( rdd => if (!rdd.isEmpty) {
+        aggDStream.foreach(m => println("aggDStream: " + m._1 + " -- " + m._2))
     })
 
     ssc.start()
